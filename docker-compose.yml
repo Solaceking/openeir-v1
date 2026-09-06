@@ -1,0 +1,91 @@
+# OpenEir — one command, modular profiles.
+#
+#   docker compose --profile core up -d          # essential tracking only
+#   docker compose --profile core --profile ai up -d      # + AI insights
+#   docker compose --profile core --profile ai --profile bluetooth up -d   # + device adapters
+#   docker compose --profile core --profile ai --profile agent up -d       # + agent harness sidecar
+#
+# All state lives in the `openeir-data` volume. Back that up — it is your health record.
+
+name: openeir
+
+services:
+  app:
+    build: .
+    image: openeir:latest
+    container_name: openeir-app
+    profiles: ["core"]
+    restart: unless-stopped
+    ports:
+      - "${OPENEIR_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: file:/app/db/custom.db
+      APP_KEY: ${APP_KEY:-}              # optional; auto-generated into the db volume when empty
+      REALTIME_URL: http://realtime:3031 # internal control channel
+      NEXT_TELEMETRY_DISABLED: "1"
+    volumes:
+      - openeir-data:/app/db
+    depends_on:
+      realtime:
+        condition: service_started
+    security_opt:
+      - no-new-privileges:true
+
+  realtime:
+    build: .
+    image: openeir:latest
+    container_name: openeir-realtime
+    profiles: ["core"]
+    restart: unless-stopped
+    command: ["realtime"]
+    environment:
+      REALTIME_PORT: "3030"
+    volumes:
+      - openeir-data:/app/db:ro
+    security_opt:
+      - no-new-privileges:true
+
+  # Example: optional AI gateway for local models. Point a provider at
+  # http://ollama:11434/v1 from Settings → AI providers.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: openeir-ollama
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    # GPU users: uncomment on a machine with the NVIDIA toolkit
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+
+  # Example: Bluetooth → MQTT bridge for smart BP monitors without Web
+  # Bluetooth support (e.g. headless setups). The app's Bluetooth profile
+  # uses the browser API; this container is for advanced homelab users.
+  blemqtt:
+    image: ghcr.io/handzbp/ble2mqtt:latest   # any BLE→MQTT bridge you prefer
+    container_name: openeir-blemqtt
+    profiles: ["bluetooth"]
+    restart: unless-stopped
+    network_mode: host                        # needs host BT adapter access
+    privileged: true
+
+  # Example: scheduled agent harness sidecar — polls /api/agent/poll and
+  # pushes deep analyses back via /api/agent/insights. Replace with your own.
+  agent:
+    build: .
+    image: openeir:latest
+    container_name: openeir-agent
+    profiles: ["agent"]
+    restart: unless-stopped
+    command: ["bun", "examples/agent-harness/index.ts"]
+    environment:
+      OPENEIR_URL: http://app:3000
+      AGENT_INTERVAL_MINUTES: "60"
+    depends_on:
+      - app
+
+volumes:
+  openeir-data:
+  ollama-models:

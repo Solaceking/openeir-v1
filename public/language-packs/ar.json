@@ -1,0 +1,78 @@
+{
+  "name": "Arabic",
+  "nativeName": "العربية",
+  "dir": "rtl",
+  "version": "1.0.0",
+  "authors": ["OpenEir community"],
+  "strings": {
+    "app": { "name": "هيلث سيج", "tagline": "صحتك، بفهم أوضح." },
+    "nav": {
+      "dashboard": "الرئيسية",
+      "record": "تسجيل",
+      "readings": "القراءات",
+      "medications": "الأدوية",
+      "trends": "الاتجاهات",
+      "story": "قصة الضغط",
+      "whatif": "ماذا لو",
+      "reports": "التقارير",
+      "settings": "الإعدادات"
+    },
+    "common": {
+      "save": "حفظ",
+      "cancel": "إلغاء",
+      "delete": "حذف",
+      "edit": "تعديل",
+      "close": "إغلاق",
+      "add": "إضافة",
+      "today": "اليوم",
+      "yesterday": "أمس",
+      "week": "أسبوع",
+      "month": "شهر",
+      "loading": "جارٍ التحميل…",
+      "saving": "جارٍ الحفظ…",
+      "optional": "اختياري",
+      "none": "لا شيء بعد",
+      "offline": "غير متصل — ستُزامن التغييرات"
+    },
+    "dashboard": {
+      "greetingMorning": "صباح الخير، {name}",
+      "greetingAfternoon": "طاب يومك، {name}",
+      "greetingEvening": "مساء الخير، {name}",
+      "lastReading": "آخر قراءة",
+      "avg30": "متوسط ٣٠ يوماً",
+      "inTarget": "ضمن الهدف",
+      "medsToday": "أدوية اليوم",
+      "doseTaken": "تم",
+      "dosePending": "في {time}",
+      "doseMissed": "فائتة",
+      "takeDose": "تناول",
+      "streak": "أيام التسجيل المتواصلة",
+      "days": "أيام",
+      "score": "نتيجة سيج",
+      "insights": "ملاحظات سيج"
+    },
+    "record": {
+      "title": "تسجيل",
+      "bp": "ضغط الدم",
+      "glucose": "السكر",
+      "lifestyle": "نمط الحياة",
+      "meds": "دواء",
+      "systolic": "الانقباضي",
+      "diastolic": "الانبساطي",
+      "pulse": "النبض",
+      "saveReading": "حفظ القراءة",
+      "value": "القيمة (ممول/ل)",
+      "fasting": "صائم",
+      "weight": "الوزن (كغ)"
+    },
+    "settings": {
+      "title": "الإعدادات",
+      "profile": "الملف والأهداف",
+      "ai": "مزوّدو الذكاء الاصطناعي",
+      "appearance": "المظهر",
+      "language": "اللغة",
+      "largeText": "خط كبير",
+      "highContrast": "تباين عالٍ"
+    }
+  }
+}

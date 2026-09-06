@@ -1,0 +1,203 @@
+// ============================================================
+// OpenEir — self-hosted blood pressure & glucose intelligence
+// Prisma schema (SQLite). JSON-ish fields are stored as strings
+// and parsed through typed helpers in src/lib/*
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+/// Singleton user profile + clinical targets + preferences
+model Profile {
+  id                String   @id @default(cuid())
+  fullName          String   @default("Friend")
+  birthYear         Int?
+  sex               String? // male | female | other
+  heightCm          Float?
+  conditions        String   @default("[]") // JSON string[]
+  notes             String?
+  // Clinical targets
+  bpSystolicTarget  Int      @default(130)
+  bpDiastolicTarget Int      @default(80)
+  glucoseTargetMin  Float    @default(4.4) // mmol/L fasting floor
+  glucoseTargetMax  Float    @default(7.2) // mmol/L ceiling
+  glucoseUnit       String   @default("mmol") // mmol | mgdl
+  weightTargetKg    Float?
+  onboarded         Boolean  @default(false)
+  // Appearance / a11y / language / ai autonomy / quiet hours (JSON)
+  prefs             String   @default("{}")
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
+model BpReading {
+  id        String   @id @default(cuid())
+  systolic  Int
+  diastolic Int
+  pulse     Int?
+  arm       String   @default("left") // left | right
+  label     String   @default("general") // morning | evening | pre_med | post_med | general
+  tags      String   @default("[]") // JSON string[]: stress, exercise, illness...
+  notes     String?
+  source    String   @default("manual") // manual | bluetooth | import
+  takenAt   DateTime
+  createdAt DateTime @default(now())
+
+  @@index([takenAt])
+}
+
+model GlucoseReading {
+  id      String   @id @default(cuid())
+  value   Float // canonical mmol/L
+  context String   @default("random") // fasting | pre_meal | post_meal | bedtime | random
+  carbs   Float?
+  tags    String   @default("[]")
+  notes   String?
+  source  String   @default("manual")
+  takenAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([takenAt])
+}
+
+model Medication {
+  id              String   @id @default(cuid())
+  name            String
+  doseValue       Float
+  doseUnit        String   @default("mg")
+  form            String   @default("tablet") // tablet | capsule | injection | drops | other
+  purpose         String?
+  scheduleTimes   String   @default("[]") // JSON ["08:00","20:00"]
+  instructions    String?
+  stock           Float? // remaining doses
+  refillThreshold Float?
+  active          Boolean  @default(true)
+  notes           String?
+  createdAt       DateTime @default(now())
+  logs            MedicationLog[]
+}
+
+model MedicationLog {
+  id            String  @id @default(cuid())
+  medicationId  String
+  medication    Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+  date          String // YYYY-MM-DD (local)
+  scheduledTime String // "08:00"
+  status        String  @default("pending") // pending | taken | skipped | delayed | missed
+  actualTime    String?
+  note          String?
+  createdAt     DateTime @default(now())
+
+  @@unique([medicationId, date, scheduledTime])
+  @@index([date])
+}
+
+model LifestyleLog {
+  id           String  @id @default(cuid())
+  date         String  @unique // YYYY-MM-DD
+  mood         Int? // 1..5
+  energy       Int? // 1..5
+  sleepQuality Int? // 1..5
+  stress       Int? // 1..5
+  weightKg     Float?
+  sodiumHigh   Boolean?
+  notes        String?
+  createdAt    DateTime @default(now())
+}
+
+/// Ambient AI insights surfaced across the UI
+model Insight {
+  id         String   @id @default(cuid())
+  kind       String // pattern | anomaly | warning | celebration | tip | summary | correlation | coach
+  severity   String   @default("info") // info | low | medium | high | critical
+  title      String
+  body       String // plain-language narrative
+  dataJson   String? // structured payload for charts/links
+  sourceEvent String?
+  origin     String   @default("rule") // rule | ai | agent
+  status     String   @default("new") // new | seen | dismissed | actioned
+  pinned     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Event-driven nervous system: every notable app event lands here
+model EventRecord {
+  id        String   @id @default(cuid())
+  type      String // READING_LOGGED, MEDICATION_MISSED, PATTERN_ANOMALY...
+  priority  String   @default("normal") // low | normal | high | critical
+  payload   String   @default("{}")
+  processed Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([type])
+}
+
+/// Provider-agnostic AI configuration (fallback chain by priority)
+model AiProviderConfig {
+  id            String  @id @default(cuid())
+  label         String
+  adapter       String  @default("openai_compatible") // builtin_zai | openai_compatible | anthropic | ollama
+  baseUrl       String?
+  model         String?
+  apiKeyEnc     String? // AES-256-GCM encrypted
+  enabled       Boolean @default(true)
+  isDefault     Boolean @default(false)
+  priority      Int     @default(100) // lower = tried first
+  costPer1kIn   Float?
+  costPer1kOut  Float?
+  privacyMode   Boolean @default(false) // strip PII before sending
+  lastStatus    String?
+  lastLatencyMs Int?
+  createdAt     DateTime @default(now())
+}
+
+model AiUsage {
+  id            String   @id @default(cuid())
+  providerLabel String
+  model         String?
+  purpose       String // insight | story | whatif | report | chat
+  tokensIn      Int      @default(0)
+  tokensOut     Int      @default(0)
+  latencyMs     Int      @default(0)
+  estimatedCost Float    @default(0)
+  ok            Boolean  @default(true)
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// Cached "Blood Pressure Story" weekly narratives
+model StoryEntry {
+  id        String   @id @default(cuid())
+  weekStart String // YYYY-MM-DD (Monday)
+  period    String   @default("week") // week | month
+  content   String
+  statsJson String?
+  createdAt DateTime @default(now())
+
+  @@unique([weekStart, period])
+}
+
+model WhatIfScenario {
+  id             String   @id @default(cuid())
+  question       String
+  paramsJson     String
+  projectionJson String
+  narrative      String?
+  createdAt      DateTime @default(now())
+}
+
+/// Key/value store for reminders, language pack cache, etc.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

@@ -1,0 +1,54 @@
+# dependencies
+node_modules
+/.pnp
+.pnp.*
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# env — copy .env.example to .env and adjust
+.env
+.env.*
+!.env.example
+
+# local data — your health record lives here, never commit it
+/db/*.db
+/db/*.db-journal
+/db/*.db-wal
+/db/*.db-shm
+/db/.appkey
+
+# debug & logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+dev.log
+server.log
+
+# misc
+.DS_Store
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+
+# platform/sandbox tooling — never publish
+/skills/
+/upload/
+/agent-ctx
+
+# internal working notes & local tooling (not part of the published app)
+/worklog.md
+/.zscripts
+/tests
+/download
+/upload
+/Caddyfile
+/scripts/verify-*.png
+/scripts/rebrand.py
+/scripts/migrate-builtin-model.ts
