@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
-import { Bluetooth, Loader2, Minus, Plus, HeartPulse, Droplets, Flame, Pill } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Bluetooth, Loader2, Minus, Plus, HeartPulse, Droplets, Flame, Pill, Camera, ScanLine, RotateCcw } from 'lucide-react'
+import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -18,6 +19,7 @@ import { useStats, usePostReading, useUpsertLifestyle, useLogMedication } from '
 import { categorizeBp, BP_CATEGORIES, KNOWN_TAGS } from '@/lib/health/bp'
 import { GLUCOSE_CONTEXTS, categorizeGlucose, GLUCOSE_CATEGORIES } from '@/lib/health/glucose'
 import { bluetoothSupported, syncBloodPressureMonitor, syncGlucometer, type BpMeasurement } from '@/lib/bluetooth'
+import { SCAN_CONFIDENCE_THRESHOLD, type ScanResult } from '@/lib/ocr/types'
 import { useT } from '@/lib/i18n'
 
 function Stepper({ id, label, value, onChange, min, max, unit }: {
@@ -99,6 +101,14 @@ export function RecordView() {
   const [deviceBusy, setDeviceBusy] = useState(false)
   const [deviceMsg, setDeviceMsg] = useState<string | null>(null)
 
+  // scan (photo -> structured reading, always human-confirmed)
+  const [tab, setTab] = useState('bp')
+  const [scanPreview, setScanPreview] = useState<string | null>(null)
+  const [scanBusy, setScanBusy] = useState(false)
+  const [scanResult, setScanResult] = useState<ScanResult | null>(null)
+  const [scanApplied, setScanApplied] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
   const todayIso = new Date().toISOString().slice(0, 10)
 
   const bpPreview = sys && dia ? categorizeBp(sys, dia) : null
@@ -108,19 +118,88 @@ export function RecordView() {
 
   const saveBp = async () => {
     if (!sys || !dia) return
-    await post.mutateAsync({ kind: 'bp', payload: { systolic: sys, diastolic: dia, pulse, label: bpLabel, tags: bpTags, notes: bpNotes || null } })
+    const res = await post.mutateAsync({ kind: 'bp', payload: { systolic: sys, diastolic: dia, pulse, label: bpLabel, tags: bpTags, notes: bpNotes || null, source: scanApplied ? 'ocr' : 'manual' } })
+    if (!res.queued && res.data && typeof res.data === 'object' && 'duplicate' in res.data) {
+      const existing = (res.data as { existing?: { source?: string } }).existing
+      toast.message(t('record.scanAlreadyLogged', { source: existing?.source ?? 'before' }), {
+        action: { label: t('record.logAnyway'), onClick: () => void post.mutateAsync({ kind: 'bp', payload: { systolic: sys, diastolic: dia, pulse, label: bpLabel, tags: bpTags, notes: bpNotes || null, source: scanApplied ? 'ocr' : 'manual', force: true } }) },
+      })
+      return
+    }
     setSys(null); setDia(null); setPulse(null); setBpTags([]); setBpNotes('')
+    setScanApplied(false)
   }
 
   const saveGlucose = async () => {
     if (!glVal) return
-    await post.mutateAsync({ kind: 'glucose', payload: { value: glVal, context: glCtx, carbs, notes: glNotes || null } })
+    const res = await post.mutateAsync({ kind: 'glucose', payload: { value: glVal, context: glCtx, carbs, notes: glNotes || null, source: scanApplied ? 'ocr' : 'manual' } })
+    if (!res.queued && res.data && typeof res.data === 'object' && 'duplicate' in res.data) {
+      const existing = (res.data as { existing?: { source?: string } }).existing
+      toast.message(t('record.scanAlreadyLogged', { source: existing?.source ?? 'before' }), {
+        action: { label: t('record.logAnyway'), onClick: () => void post.mutateAsync({ kind: 'glucose', payload: { value: glVal, context: glCtx, carbs, notes: glNotes || null, source: scanApplied ? 'ocr' : 'manual', force: true } }) },
+      })
+      return
+    }
     setGlVal(null); setCarbs(null); setGlNotes('')
+    setScanApplied(false)
   }
 
   const saveLifestyle = async () => {
     await upsertLife.mutateAsync({ date: todayIso, mood, energy, sleepQuality: sleep, stress, weightKg: weight, sodiumHigh })
   }
+
+  // ---- scan pipeline (photo -> /api/ocr/scan -> human confirmation) ----
+  const pickFile = (f: File) => {
+    if (!f.type.startsWith('image/')) { toast.error('Not an image file'); return }
+    if (f.size > 8 * 1024 * 1024) { toast.error('Image too large (max 8 MB)'); return }
+    setScanPreview(URL.createObjectURL(f))
+    setScanResult(null)
+  }
+
+  const runScan = async () => {
+    if (!scanPreview) return
+    setScanBusy(true); setScanResult(null)
+    try {
+      const blob = await (await fetch(scanPreview)).blob()
+      const fd = new FormData()
+      fd.append('image', blob, 'scan.jpg')
+      const res = await fetch('/api/ocr/scan', { method: 'POST', body: fd })
+      if (!res.ok) throw new Error((await res.json().catch(() => ({})))?.error ?? `Scan failed (${res.status})`)
+      const data = (await res.json()) as ScanResult
+      setScanResult(data)
+      if (data.fields.kind === 'bp') toast.success(`BP ${data.fields.systolic}/${data.fields.diastolic} — ${t('record.useValues')}?`)
+      else if (data.fields.kind === 'glucose') toast.success(`${data.fields.value} ${data.fields.unit} — ${t('record.useValues')}?`)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Scan failed')
+    } finally {
+      setScanBusy(false)
+    }
+  }
+
+  const applyScan = () => {
+    const r = scanResult
+    if (!r) return
+    if (r.fields.kind === 'bp') {
+      setSys(r.fields.systolic); setDia(r.fields.diastolic); setPulse(r.fields.pulse ?? null)
+      setScanApplied(true); setTab('bp')
+    } else if (r.fields.kind === 'glucose') {
+      const v = r.fields.unit === 'mg/dL' ? Math.round((r.fields.value / 18) * 10) / 10 : r.fields.value
+      if (v < 1 || v > 40) { toast.error('Value out of range (mmol/L 1–40)'); return }
+      setGlVal(v)
+      setScanApplied(true); setTab('glucose')
+    }
+  }
+
+  // paste-to-scan on desktop
+  useEffect(() => {
+    if (tab !== 'scan') return
+    const onPaste = (e: ClipboardEvent) => {
+      const f = Array.from(e.clipboardData?.files ?? []).find((x) => x.type.startsWith('image/'))
+      if (f) pickFile(f)
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [tab])
 
   const connectDevice = async (kind: 'bp' | 'glucose') => {
     if (!bluetoothSupported()) {
@@ -155,10 +234,11 @@ export function RecordView() {
     <div className="space-y-4">
       <h1 className="text-2xl font-bold tracking-tight">{t('record.title')}</h1>
 
-      <Tabs defaultValue="bp">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto w-full flex-wrap sm:w-auto">
           <TabsTrigger value="bp" className="gap-1.5 px-4"><HeartPulse className="h-4 w-4" aria-hidden />{t('record.bp')}</TabsTrigger>
           <TabsTrigger value="glucose" className="gap-1.5 px-4"><Droplets className="h-4 w-4" aria-hidden />{t('record.glucose')}</TabsTrigger>
+          <TabsTrigger value="scan" className="gap-1.5 px-4"><ScanLine className="h-4 w-4" aria-hidden />{t('record.scan')}</TabsTrigger>
           <TabsTrigger value="lifestyle" className="gap-1.5 px-4"><Flame className="h-4 w-4" aria-hidden />{t('record.lifestyle')}</TabsTrigger>
           <TabsTrigger value="meds" className="gap-1.5 px-4"><Pill className="h-4 w-4" aria-hidden />{t('record.meds')}</TabsTrigger>
         </TabsList>
@@ -264,6 +344,81 @@ export function RecordView() {
               <Button onClick={saveGlucose} disabled={!glVal || post.isPending} size="lg" className="min-h-[48px] w-full text-base">
                 {post.isPending ? t('common.saving') : t('record.saveReading')}
               </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ---------------- Scan (photo -> structured reading) ---------------- */}
+        <TabsContent value="scan">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">{t('record.scanTitle')}</CardTitle></CardHeader>
+            <CardContent className="space-y-4">
+              <p className="text-xs text-muted-foreground">{t('record.scanHint')}</p>
+              <input
+                ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = '' }}
+              />
+              {!scanPreview ? (
+                <button
+                  type="button" onClick={() => fileRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files?.[0]; if (f) pickFile(f) }}
+                  className="flex min-h-[170px] w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border bg-muted/30 text-sm text-muted-foreground transition-colors hover:bg-accent"
+                >
+                  <Camera className="h-7 w-7" aria-hidden />
+                  <span className="font-medium text-foreground">{t('record.choosePhoto')}</span>
+                  <span className="text-[11px]">{t('record.pasteOrDrop')}</span>
+                </button>
+              ) : (
+                <div className="space-y-3">
+                  <img src={scanPreview} alt="Scan preview" className="max-h-64 w-full rounded-xl border object-contain" />
+                  <div className="flex gap-2">
+                    <Button onClick={runScan} disabled={scanBusy} className="min-h-[44px] flex-1 gap-1.5">
+                      {scanBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ScanLine className="h-4 w-4" aria-hidden />}
+                      {scanBusy ? t('record.scanningImage') : t('record.scanImage')}
+                    </Button>
+                    <Button variant="outline" className="min-h-[44px]"
+                      onClick={() => { setScanPreview(null); setScanResult(null) }} aria-label="Discard image">
+                      <RotateCcw className="h-4 w-4" aria-hidden />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {scanResult && (
+                <div className="space-y-2 rounded-xl border bg-card p-3">
+                  {scanResult.kind === 'bp' && scanResult.fields.kind === 'bp' && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold tabular-nums">{scanResult.fields.systolic}/{scanResult.fields.diastolic}</span>
+                      {scanResult.fields.pulse ? <span className="text-sm text-muted-foreground">· {scanResult.fields.pulse} bpm</span> : null}
+                    </div>
+                  )}
+                  {scanResult.kind === 'glucose' && scanResult.fields.kind === 'glucose' && (
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold tabular-nums">{scanResult.fields.value}</span>
+                      <span className="text-sm text-muted-foreground">{scanResult.fields.unit} → {Math.round((scanResult.fields.value / 18) * 10) / 10} mmol/L</span>
+                    </div>
+                  )}
+                  {scanResult.kind === 'unknown' && (
+                    <p className="text-sm text-muted-foreground">{t('record.scanUnknown')}</p>
+                  )}
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={scanResult.confidence >= 0.9 ? 'default' : scanResult.confidence >= SCAN_CONFIDENCE_THRESHOLD ? 'secondary' : 'destructive'}>
+                      {t('record.confidence')} {Math.round(scanResult.confidence * 100)}%
+                    </Badge>
+                    {scanApplied && <Badge variant="outline">{t('record.scanFromPhoto')}</Badge>}
+                    {scanResult.via.map((v) => <Badge key={v} variant="outline">{v}</Badge>)}
+                  </div>
+                  {scanResult.kind !== 'unknown' && (
+                    <Button onClick={applyScan} className="min-h-[44px] w-full">{t('record.useValues')}</Button>
+                  )}
+                  {scanResult.notes.length > 0 && (
+                    <ul className="space-y-0.5 text-[11px] text-muted-foreground">
+                      {scanResult.notes.slice(0, 3).map((n, i) => <li key={i}>· {n}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -157,6 +157,8 @@ export function usePostReading() {
     },
     onSuccess: (_d, v) => {
       refresh()
+      // duplicate-guard response: caller decides (offers "Log anyway")
+      if (!_d.queued && _d.data && typeof _d.data === 'object' && 'duplicate' in _d.data) return
       toast.success(
         'queued' in _d && _d.queued
           ? 'Saved offline — will sync automatically'

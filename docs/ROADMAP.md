@@ -15,6 +15,9 @@ Each item below lands as a domain module: schema + API + views + event emitters 
 - [ ] **Activity & exercise sessions** — structured workouts as first-class correlation inputs
 
 ## Next (1.1)
+- [x] Unified capture pipeline: `source` tagging (manual/bluetooth/import/voice/ocr) + duplicate guard for machine captures with force-after-confirm
+- [x] Photo scan (OCR): vision model via provider chain → local tesseract fallback → manual entry; human confirmation always required
+- [ ] Voice logging: push-to-talk STT (Web Speech API, in-browser; server ASR as upgrade) → intent parser → readback confirm; TTS confirmations via SpeechSynthesis / server TTS
 - [ ] Nightscout import bridge (CGM data)
 - [ ] Weekly story via scheduled agent (cron in-core, no external agent needed)
 - [ ] PDF rendering server-side (optional headless-chromium sidecar)

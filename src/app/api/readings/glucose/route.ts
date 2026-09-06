@@ -2,6 +2,7 @@ import { db } from '@/lib/db'
 import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
 import { z } from 'zod'
 import { emitEvent } from '@/lib/events'
+import { detectDuplicate } from '@/lib/pipeline/dedupe'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,7 +13,9 @@ const createSchema = z.object({
   tags: z.array(z.string().max(30)).max(10).optional(),
   notes: z.string().max(500).nullable().optional(),
   takenAt: z.string().datetime().optional(),
-  source: z.enum(['manual', 'bluetooth', 'import']).optional(),
+  source: z.enum(['manual', 'bluetooth', 'import', 'voice', 'ocr']).optional(),
+  /** machine captures may override a duplicate guard after user confirmation */
+  force: z.boolean().optional(),
 })
 
 export async function GET(req: Request) {
@@ -33,6 +36,36 @@ export async function POST(req: Request) {
   const parsed = await parseBody(req, createSchema)
   if ('response' in parsed) return parsed.response
   const d = parsed.data
+  const source = d.source ?? 'manual'
+
+  // Unified input pipeline: voice/ocr captures must not silently double-log
+  // a reading that another source (bluetooth, manual) already recorded.
+  if (!d.force) {
+    const dup = await detectDuplicate(source, {
+      findExisting: async () => {
+        const takenAt = d.takenAt ? new Date(d.takenAt) : new Date()
+        const since = new Date(takenAt.getTime() - 3 * 60 * 1000)
+        const until = new Date(takenAt.getTime() + 3 * 60 * 1000)
+        return db.glucoseReading.findFirst({
+          where: { takenAt: { gte: since, lte: until }, value: d.value },
+          orderBy: { takenAt: 'desc' },
+        })
+      },
+      isSame: (existing) => Math.abs(existing.value - d.value) < 0.001,
+    })
+    if (dup.duplicate && dup.existing) {
+      return ok({
+        duplicate: true,
+        existing: {
+          id: dup.existing.id,
+          value: dup.existing.value,
+          source: dup.existing.source,
+          takenAt: dup.existing.takenAt,
+        },
+        message: 'An identical reading was already captured within the last few minutes.',
+      })
+    }
+  }
 
   const reading = await db.glucoseReading.create({
     data: {
@@ -41,7 +74,7 @@ export async function POST(req: Request) {
       carbs: d.carbs ?? null,
       tags: JSON.stringify(d.tags ?? []),
       notes: d.notes ?? null,
-      source: d.source ?? 'manual',
+      source,
       takenAt: d.takenAt ? new Date(d.takenAt) : new Date(),
     },
   })

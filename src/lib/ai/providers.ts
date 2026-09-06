@@ -5,9 +5,16 @@
 
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
-import { DEFAULT_BUILTIN_MODEL } from '@/lib/ai/model-default'
+import { DEFAULT_BUILTIN_MODEL, DEFAULT_BUILTIN_VISION_MODEL, isVisionModelId } from '@/lib/ai/model-default'
 
-export interface ChatMessage { role: 'system' | 'user' | 'assistant'; content: string }
+export interface ChatImage { mediaType: string; dataBase64: string }
+
+export interface ChatMessage {
+  role: 'system' | 'user' | 'assistant'
+  content: string
+  /** Optional images (vision requests). Adapters translate to their wire format. */
+  images?: ChatImage[]
+}
 
 export interface ChatResult {
   ok: boolean
@@ -27,9 +34,41 @@ interface ProviderRow {
 
 const TIMEOUT_MS = 45_000
 
+/** OpenAI-style multimodal content parts (accepted by most OpenAI-compatible wire formats). */
+function multimodalContent(m: ChatMessage): string | Array<Record<string, unknown>> {
+  if (!m.images?.length) return m.content
+  return [
+    { type: 'text', text: m.content },
+    ...m.images.map((img) => ({
+      type: 'image_url',
+      image_url: { url: `data:${img.mediaType};base64,${img.dataBase64}` },
+    })),
+  ]
+}
+
 async function callBuiltinZai(messages: ChatMessage[], model: string | null): Promise<string> {
   const { default: ZAI } = await import('z-ai-web-dev-sdk')
   const zai = await ZAI.create()
+
+  // Vision requests must use the gateway's dedicated vision endpoint and a
+  // vision-capable model id (its text endpoint rejects image content).
+  if (messages.some((m) => m.images?.length)) {
+    const visionModel = model && isVisionModelId(model) ? model : DEFAULT_BUILTIN_VISION_MODEL
+    const completion = (await zai.chat.completions.createVision({
+      model: visionModel,
+      messages: messages.map((m) => ({
+        role: m.role,
+        content: multimodalContent(m) as string | Array<Record<string, unknown>>,
+      })),
+      thinking: { type: 'disabled' },
+    } as unknown as Parameters<typeof zai.chat.completions.createVision>[0])) as {
+      choices?: Array<{ message?: { content?: string } }>
+    }
+    const text = completion.choices?.[0]?.message?.content ?? ''
+    if (!text.trim()) throw new Error('empty response from built-in vision endpoint')
+    return text
+  }
+
   // The SDK uses 'assistant' role for the system prompt.
   const sdkMessages = messages.map((m) => ({
     role: m.role === 'system' ? 'assistant' : m.role,
@@ -55,7 +94,7 @@ async function callOpenAiCompatible(row: ProviderRow, apiKey: string | null, mes
     },
     body: JSON.stringify({
       model: row.model ?? 'default',
-      messages,
+      messages: messages.map((m) => ({ role: m.role, content: multimodalContent(m) })),
       temperature: 0.6,
       stream: false,
     }),
@@ -83,7 +122,18 @@ async function callAnthropic(row: ProviderRow, apiKey: string | null, messages: 
       model: row.model ?? 'claude-3-5-haiku-latest',
       max_tokens: 1200,
       ...(system ? { system } : {}),
-      messages: rest.map((m) => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
+      messages: rest.map((m) => ({
+        role: m.role === 'assistant' ? 'assistant' : 'user',
+        content: [
+          ...(m.images?.length
+            ? m.images.map((img) => ({
+                type: 'image' as const,
+                source: { type: 'base64' as const, media_type: img.mediaType, data: img.dataBase64 },
+              }))
+            : []),
+          { type: 'text' as const, text: m.content },
+        ],
+      })),
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
   })
@@ -96,7 +146,7 @@ async function callAnthropic(row: ProviderRow, apiKey: string | null, messages: 
 
 /** Walk the fallback chain. Records AiUsage for every attempt. */
 export async function completeChat(
-  purpose: 'insight' | 'story' | 'whatif' | 'report' | 'chat',
+  purpose: 'insight' | 'story' | 'whatif' | 'report' | 'chat' | 'ocr',
   messages: ChatMessage[],
 ): Promise<ChatResult> {
   const rows: ProviderRow[] = await db.aiProviderConfig.findMany({

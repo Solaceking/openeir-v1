@@ -52,3 +52,8 @@ next-env.d.ts
 /scripts/verify-*.png
 /scripts/rebrand.py
 /scripts/migrate-builtin-model.ts
+
+# tesseract language cache & generated scan fixtures
+*.traineddata
+scripts/test-*.png
+tool-results/

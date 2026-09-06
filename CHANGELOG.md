@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+### Photo scan (OCR) — capture pipeline phase 1
+- New **Scan** tab in Record: photograph (or paste / drop) a BP monitor, glucometer or report excerpt and OpenEir suggests structured values — you always confirm before saving (never auto-logs)
+- Extraction ladder: vision model through the existing AI provider chain (excellent on 7-segment LCDs) → local tesseract.js in an isolated child process (works with no AI provider) → deterministic regex parser → manual entry
+- Transcript cross-checking: the model's own digit transcript is re-parsed by the deterministic parser; agreement raises confidence, conflict caps it and flags "verify carefully"
+- Confidence badges (agreement 97% / corroborated 80% / conflicting 70%) with per-scan notes showing which extractor answered and how long it took
+- Unified input pipeline foundations: readings now carry `source` (`manual` / `bluetooth` / `import` / `voice` / `ocr`); machine captures are duplicate-guarded — an identical reading within ±3 minutes returns "already logged via X" with an explicit *Log anyway* action; manual and bluetooth entries are never blocked
+- mg/dL → mmol/L conversion applied automatically for glucose scans
+- Works on every platform the PWA supports — including iOS Safari, where Web Bluetooth is unavailable (camera capture is the universal ingestion path)
+
 ## v1.0.0 — 2026-09-06
 
 Initial public release. OpenEir ships as a **self-hosted AI medical assistant with an open agent harness**: blood pressure, glucose, medications and lifestyle are the first health domains on a platform designed to grow across all of them (see docs/ROADMAP.md — heart rate & SpO₂, body composition, lab biomarkers, symptoms, nutrition detail are architecture-ready next).

@@ -105,6 +105,7 @@ Keys are AES-256-GCM encrypted at rest; every call is measured (latency, success
 ## Feature tour
 
 - 📈 **Tracking** — BP (ACC/AHA categories), glucose (context-aware, HbA1c estimate), carbs, pulse, custom tags, labels (morning/evening/pre-med…), lifestyle (mood, energy, sleep, stress, weight, sodium)
+- 📷 **Photo scan (OCR)** — photograph a BP monitor or glucometer and OpenEir reads it: vision model through your provider chain first, local offline OCR fallback second, deterministic parser as the floor. Every scan is a *suggestion* — you confirm before it saves, and machine captures are duplicate-guarded against readings logged minutes earlier by any other source
 - 🫁 **Bluetooth devices** — Web Bluetooth GATT support for BP monitors (0x1810) and glucometers (0x1808) with proper SFLOAT parsing, in Chromium browsers
 - 💊 **Medications** — schedules, adherence streaks, inventory with refill prediction, missed-dose recovery guidance, educational interaction checks
 - 🧠 **Ambient intelligence** — event-driven orchestrator, context builder, rule engine first + AI enrichment second, realtime push over socket.io, quiet hours, de-duplication
