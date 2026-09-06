@@ -17,10 +17,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "OpenEir — your health, understood",
   description:
-    "Self-hosted blood pressure & glucose tracking with ambient AI intelligence. Private by design, doctor-ready reports, community-extensible.",
+    "Self-hosted AI medical assistant with an open agent harness. Ambient health intelligence on your own hardware — private by design, doctor-ready reports, community-extensible.",
   applicationName: "OpenEir",
   manifest: "/manifest.webmanifest",
-  keywords: ["blood pressure", "glucose", "health tracker", "self-hosted", "AI", "privacy"],
+  keywords: ["AI medical assistant", "blood pressure", "glucose", "health tracking", "agent harness", "self-hosted", "ambient AI", "privacy"],
   authors: [{ name: "OpenEir contributors" }],
   icons: {
     icon: [{ url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],

@@ -2,7 +2,7 @@
 
 ## v1.0.0 — 2026-09-06
 
-Initial public release.
+Initial public release. OpenEir ships as a **self-hosted AI medical assistant with an open agent harness**: blood pressure, glucose, medications and lifestyle are the first health domains on a platform designed to grow across all of them (see docs/ROADMAP.md — heart rate & SpO₂, body composition, lab biomarkers, symptoms, nutrition detail are architecture-ready next).
 
 ### Core tracking
 - Blood pressure readings with ACC/AHA 2017 auto-categorization, labels, tags, arm, pulse

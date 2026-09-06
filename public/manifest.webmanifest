@@ -1,7 +1,7 @@
 {
-  "name": "OpenEir — Health Tracking & Ambient AI",
+  "name": "OpenEir — AI Medical Assistant",
   "short_name": "OpenEir",
-  "description": "Self-hosted blood pressure & glucose tracking with ambient AI intelligence. Private by design.",
+  "description": "Self-hosted AI medical assistant with an open agent harness. Private by design.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f0fdfa",

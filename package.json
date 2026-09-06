@@ -2,11 +2,11 @@
   "name": "openeir",
   "version": "1.0.0",
   "private": true,
-  "description": "OpenEir — self-hosted blood pressure & glucose tracking with ambient AI. Private by design.",
+  "description": "OpenEir — self-hosted AI medical assistant with ambient intelligence and an open agent harness. Private by design.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/openeir/openeir.git"
+    "url": "https://github.com/Solaceking/openeir.git"
   },
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",

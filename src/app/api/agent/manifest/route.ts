@@ -10,7 +10,7 @@ export async function GET() {
     protocol: 'openeir-agent-v1',
     mcpCompatible: true,
     name: 'OpenEir',
-    description: 'Self-hosted blood pressure & glucose intelligence platform. Agent API for polling health state, pushing insights, and running analyses.',
+    description: 'Self-hosted AI medical assistant platform. Agent API for polling health state, pushing insights, and running analyses — your agents join the medical team.',
     tools: [
       {
         name: 'health.get_context',

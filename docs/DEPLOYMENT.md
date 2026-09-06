@@ -9,7 +9,7 @@
 ## Option A — Docker Compose (recommended)
 
 ```bash
-git clone https://github.com/openeir/openeir.git
+git clone https://github.com/Solaceking/openeir.git
 cd openeir
 
 # essential only

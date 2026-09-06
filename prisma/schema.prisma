@@ -1,5 +1,5 @@
 // ============================================================
-// OpenEir — self-hosted blood pressure & glucose intelligence
+// OpenEir — self-hosted AI medical assistant: health domains, ambient intelligence, agent harness
 // Prisma schema (SQLite). JSON-ish fields are stored as strings
 // and parsed through typed helpers in src/lib/*
 // ============================================================
