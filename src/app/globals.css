@@ -231,9 +231,10 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 
 /* ---------- conversation design system ---------- */
 
-/* viewport reserved for shell chrome around the Talk thread */
-:root { --shell-chrome: 12.25rem; }
-@media (min-width: 768px) { :root { --shell-chrome: 9.75rem; } }
+/* viewport reserved for shell chrome around the Talk thread
+   (top bar 52px + content paddings + mobile bottom nav) */
+:root { --shell-chrome: 10.25rem; }
+@media (min-width: 768px) { :root { --shell-chrome: 6.25rem; } }
 
 /* Eir's side: a porcelain card with a teal spine; yours: flat deep teal */
 .eir-bubble-eir {
@@ -285,8 +286,7 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   animation: eir-caret-blink 0.9s step-end infinite;
 }
 
-/* suggestion chips get a soft lift */
-.eir-chip { box-shadow: 0 1px 2px oklch(0 0 0 / 0.04); }
+/* suggestion chips — flat brand: separation by border, never by shadow */
 .eir-chip:active { transform: scale(0.98); }
 
 /* ---------- splash screen ---------- */

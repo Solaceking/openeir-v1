@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Worldclass shell — the application frame
+- **True app frame**: the sidebar is now a full-height flush rail (hairline border, no floating card) and the content column opens with its own top bar — the disjointed "box in a box" layout is gone
+- **Breadcrumbs live in the top bar** on every page, always consistent: `Home › Daily care › Talk`, and four levels deep inside Settings (`Home › System › Settings › Profile & accounts`) with clickable parents; the trail follows the settings drill-down live
+- **⌘K quick navigation**: searchable palette (button or Ctrl/⌘K) to jump to any role-allowed page plus quick actions (new record, start conversation, toggle theme)
+- **Refined sidebar**: strong flat teal active state, collapse-to-icon-rail with native tooltips, serif wordmark brand block, compact user/household footer with trust note (the in-app marketing footer is gone)
+- Visual icon tiles replace bare glyphs in page headers; Talk now fits the viewport exactly (`100dvh` shell-chrome math, no page scroll around the thread)
+- **New brand mark**: an apothecary vial in deep teal carrying the amber leaf cluster — uniform flat fills, no opacity tricks, reads from favicon to splash; applied across shell, splash, login and Talk
+- Flat discipline sweep: removed the last drop shadows (suggestion chips, action cards)
+- Fixed a production build blocker: the Next 16 proxy config no longer exports a disallowed `runtime` key
+
 ### Accounts, roles & login (RBAC)
 - **Local accounts with three roles**: `admin` (everything — accounts, AI providers, data export, care), `caregiver` (daily care — log readings & doses, talk, safety), `viewer` (Family · view — read-only vitals + chat with Eir)
 - **Zero-breakage upgrade path**: no accounts → open household mode (classic behavior, no sign-in). Creating the first account (Settings → Profile & accounts → Add account) instantly switches the instance to sign-in required; the first account is always an admin

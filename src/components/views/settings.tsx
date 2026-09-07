@@ -20,7 +20,9 @@ import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useProfile, useSaveProfile, useAuth } from '@/lib/api-client'
 import { useUI } from '@/lib/store'
+import { SETTINGS_SECTIONS } from '@/lib/nav'
 import { useI18n, useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 import { AiProvidersSection } from '@/components/settings/ai-providers'
 import { NotificationsSection } from '@/components/settings/notifications'
 import { MemorySection } from '@/components/settings/memory'
@@ -38,36 +40,37 @@ const PACK_CHOICES = [
 
 type SectionKey = 'profile' | 'ai' | 'health' | 'alerts' | 'voice' | 'appearance' | 'data' | 'emergency'
 
-const SECTIONS: { key: SectionKey; icon: typeof User; label: string; desc: string; adminOnly?: boolean }[] = [
-  { key: 'profile', icon: UserCog, label: 'settings.catProfile', desc: 'settings.catProfileDesc' },
-  { key: 'ai', icon: Bot, label: 'settings.catAi', desc: 'settings.catAiDesc', adminOnly: true },
-  { key: 'health', icon: HeartPulse, label: 'settings.catHealth', desc: 'settings.catHealthDesc' },
-  { key: 'alerts', icon: BellRing, label: 'settings.catNotify', desc: 'settings.catNotifyDesc' },
-  { key: 'voice', icon: AudioLines, label: 'settings.catVoice', desc: 'settings.catVoiceDesc' },
-  { key: 'appearance', icon: Palette, label: 'settings.catAppearance', desc: 'settings.catAppearanceDesc' },
-  { key: 'data', icon: DatabaseBackup, label: 'settings.catData', desc: 'settings.catDataDesc', adminOnly: true },
-  { key: 'emergency', icon: Siren, label: 'settings.catEmergency', desc: 'settings.catEmergencyDesc' },
-]
+const SECTION_ICONS: Record<SectionKey, typeof User> = {
+  profile: UserCog,
+  ai: Bot,
+  health: HeartPulse,
+  alerts: BellRing,
+  voice: AudioLines,
+  appearance: Palette,
+  data: DatabaseBackup,
+  emergency: Siren,
+}
 
 export function SettingsView() {
   const { t } = useT()
   const auth = useAuth()
   const role = auth.data?.role ?? 'admin'
-  const [section, setSection] = useState<SectionKey | null>(null)
+  const section = useUI((s) => s.settingsSection) as SectionKey | null
+  const setSection = (k: SectionKey | null) => useUI.getState().setSettingsSection(k)
   const setView = useUI((s) => s.setView)
 
   if (section === null) {
     return (
       <div className="space-y-4">
-        <h1 className="text-2xl">{t('settings.title')}</h1>
-        <p className="-mt-2 text-sm text-muted-foreground">{t('settings.subtitle')}</p>
+        <PageHeader view="settings" subtitle={t('settings.subtitle')} />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SECTIONS.map(({ key, icon: I, label, desc, adminOnly }) => {
+          {SETTINGS_SECTIONS.map(({ key, label, desc, adminOnly }) => {
             if (adminOnly && role !== 'admin') return null
+            const I = SECTION_ICONS[key as SectionKey]
             return (
               <button
                 key={key}
-                onClick={() => setSection(key)}
+                onClick={() => setSection(key as SectionKey)}
                 className="group flex min-h-[104px] flex-col justify-between rounded-2xl border bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-primary/40"
                 aria-label={t(label)}
               >
@@ -89,19 +92,20 @@ export function SettingsView() {
     )
   }
 
-  const meta = SECTIONS.find((s) => s.key === section)!
-  const I = meta.icon
+  const meta = SETTINGS_SECTIONS.find((s) => s.key === section)!
+  const I = SECTION_ICONS[section]
   return (
     <div className="space-y-4">
-      <button
-        onClick={() => setSection(null)}
-        className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-      >
-        <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> {t('settings.back')}
-      </button>
-      <h1 className="flex items-center gap-2.5 text-2xl">
-        <I className="h-6 w-6 text-primary" aria-hidden /> {t(meta.label)}
-      </h1>
+      <PageHeader
+        view="settings"
+        icon={I}
+        title={t(meta.label)}
+        actions={
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setSection(null)}>
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> {t('settings.back')}
+          </Button>
+        }
+      />
 
       {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /></div>)}
       {section === 'ai' && <AiProvidersSection />}

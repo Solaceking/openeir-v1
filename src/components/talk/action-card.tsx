@@ -100,7 +100,7 @@ export function ActionCard({ action, id }: { action: ChatAction; id: string }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 420, damping: 28 }}
       data-action-id={id}
-      className={`mt-2 w-full rounded-2xl border bg-card/90 p-3 shadow-sm backdrop-blur ${
+      className={`mt-2 w-full rounded-2xl border bg-card/90 p-3 ${
         cardState === 'saved' || cardState === 'discarded' ? 'opacity-70' : ''
       }`}
     >

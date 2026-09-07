@@ -29,6 +29,11 @@ export const en = {
     expand: 'Expand sidebar',
     signOut: 'Sign out',
     account: 'Account',
+    search: 'Search',
+    searchPlaceholder: 'Jump to a page or action…',
+    jumpTo: 'Go to',
+    quickActions: 'Quick actions',
+    noResults: 'No matches',
   },
   roles: {
     admin: 'Admin',

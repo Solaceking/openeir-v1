@@ -22,6 +22,9 @@ interface UIState {
   sidebarCollapsed: boolean
   setAppearance: (p: Partial<Pick<UIState, 'theme' | 'largeText' | 'highContrast' | 'simpleMode'>>) => void
   setSidebarCollapsed: (v: boolean) => void
+  // settings drill-down (transient — feeds the breadcrumb trail, never persisted)
+  settingsSection: string | null
+  setSettingsSection: (v: string | null) => void
   // voice preferences (per-device: TTS voices live on the device)
   voiceAutoSpeak: boolean
   voiceRate: number
@@ -44,6 +47,8 @@ export const useUI = create<UIState>()(
       sidebarCollapsed: false,
       setAppearance: (p) => set(p),
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
+      settingsSection: null,
+      setSettingsSection: (settingsSection) => set({ settingsSection }),
       voiceAutoSpeak: true,
       voiceRate: 1,
       voiceEngine: 'edge',
@@ -59,6 +64,19 @@ export const useUI = create<UIState>()(
         if ((p.view as string) === 'voice' || p.view === undefined) p.view = 'talk'
         return p as UIState
       },
+      // transient navigation state (settingsSection) never survives a reload
+      partialize: (s) => ({
+        view: s.view,
+        theme: s.theme,
+        largeText: s.largeText,
+        highContrast: s.highContrast,
+        simpleMode: s.simpleMode,
+        sidebarCollapsed: s.sidebarCollapsed,
+        voiceAutoSpeak: s.voiceAutoSpeak,
+        voiceRate: s.voiceRate,
+        voiceEngine: s.voiceEngine,
+        edgeVoice: s.edgeVoice,
+      }) as UIState,
     },
   ),
 )

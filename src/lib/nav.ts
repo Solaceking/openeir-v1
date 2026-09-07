@@ -24,6 +24,19 @@ export function groupOf(view: ViewKey): string {
   return NAV_GROUPS.find((g) => g.keys.includes(view))?.key ?? 'home'
 }
 
+/** Settings drill-down sections — shared by the settings view and the
+ *  breadcrumb trail in the app shell. Icons live in the view, not here. */
+export const SETTINGS_SECTIONS: { key: string; label: string; desc: string; adminOnly?: boolean }[] = [
+  { key: 'profile', label: 'settings.catProfile', desc: 'settings.catProfileDesc' },
+  { key: 'ai', label: 'settings.catAi', desc: 'settings.catAiDesc', adminOnly: true },
+  { key: 'health', label: 'settings.catHealth', desc: 'settings.catHealthDesc' },
+  { key: 'alerts', label: 'settings.catNotify', desc: 'settings.catNotifyDesc' },
+  { key: 'voice', label: 'settings.catVoice', desc: 'settings.catVoiceDesc' },
+  { key: 'appearance', label: 'settings.catAppearance', desc: 'settings.catAppearanceDesc' },
+  { key: 'data', label: 'settings.catData', desc: 'settings.catDataDesc', adminOnly: true },
+  { key: 'emergency', label: 'settings.catEmergency', desc: 'settings.catEmergencyDesc' },
+]
+
 /** Views a role may open. Viewer is read-only, but Talk stays open —
  *  family should always be able to ask Eir about the day. */
 export const ROLE_VIEWS: Record<Role, ViewKey[]> = {

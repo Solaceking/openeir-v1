@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAuthMode, resolveSession, SESSION_COOKIE } from '@/lib/auth'
 
 export const config = {
-  runtime: 'nodejs',
+  // proxy always runs on the Node.js runtime in Next 16 — matcher only
   matcher: ['/((?!_next/static|_next/image|icons|manifest.webmanifest|sw.js|favicon|robots|sitemap).*)'],
 }
 

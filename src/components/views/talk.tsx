@@ -214,7 +214,7 @@ export function TalkView() {
   const lastDayRef = useRef<string | null>(null)
 
   return (
-    <div className="flex h-[calc(100vh-var(--shell-chrome,7.5rem))] min-h-[460px] flex-col">
+    <div className="flex h-[calc(100dvh-var(--shell-chrome,7.5rem))] min-h-[460px] flex-col">
       <PageHeader
         view="talk"
         title={t('talk.title')}
