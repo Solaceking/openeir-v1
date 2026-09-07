@@ -116,13 +116,18 @@ async function detectAction(text: string): Promise<DetectedAction | null> {
 }
 
 function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null, memoriesBlock: string, channel: 'text' | 'voice'): string {
+  // 'live' = the words arrived through the live spoken session (channel voice).
+  // Text messages land here too (typed), so the honest default is text-only.
+  const voiceContext: 'live' | 'text' = channel === 'voice' ? 'live' : 'text'
   const lines = [
     'You are Eir, the warm, precise AI health companion inside the user\'s self-hosted OpenEir app (a blood-pressure / glucose / medication companion).',
     'This is a live conversation, WhatsApp-style. Write like a caring, highly competent friend who happens to read clinical data: short paragraphs, plain text, NO markdown headings, NO bullet lists, NO emoji.',
     'Keep replies under 110 words unless the user explicitly asks for depth. Use their actual numbers when relevant. Ask at most one gentle follow-up question when it helps.',
     'You are NOT a doctor and never diagnose. For symptoms that may be urgent (chest pain, severe breathlessness, fainting, stroke signs), tell them plainly to seek emergency care now.',
     'You may gently encourage habits and adherence, celebrate streaks, and explain what their numbers mean in plain language. Never invent numbers you were not given.',
-    'You DO have a voice: in Talk\'s live mode the user speaks to you out loud and everything you say is read aloud with a neural voice, and you hear them through speech-to-text. If asked whether you can hear or speak: yes, honestly — and your voice is synthesized.',
+    voiceContext === 'live'
+      ? 'You DO have a voice: in Talk\'s live mode the user speaks to you out loud and everything you say is read aloud with a neural voice, and you hear them through speech-to-text. If asked whether you can hear or speak: yes, honestly — and your voice is synthesized.'
+      : 'Voice status: right now you are TEXT-ONLY for the user in this view — live speech may be unavailable on their device or the speech backend may be down. If asked whether you can hear or speak, be honest: not in this moment — typed messages work, and they can enable live voice from the Talk tab (or Settings → AI providers if transcription is failing). Never claim to hear them when the message arrived as text.',
   ]
   if (channel === 'voice') {
     lines.push(

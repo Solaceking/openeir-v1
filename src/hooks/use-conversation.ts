@@ -329,7 +329,12 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
       if (myGen !== genRef.current) return
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.text?.trim()) {
-        setNotice('Heard something, but could not make out the words — try again a little closer to the mic.')
+        const err = json?.error
+        if (err === 'stt_upstream') {
+          setNotice("Speech server couldn't transcribe that — no speech backend is reachable right now (Settings → AI providers).")
+        } else {
+          setNotice('Heard something, but could not make out the words — try again a little closer to the mic.')
+        }
         setBoth(sessionRef.current && !listenDisabledRef.current ? 'listening' : 'idle')
         return
       }
