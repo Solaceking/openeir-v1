@@ -10,6 +10,7 @@ import { useStats, useBpReadings, useGlucoseReadings, useLifestyle, useProfile }
 import { useUI } from '@/lib/store'
 import { correlateTagsWithSystolic, correlateSleepToMorningBp } from '@/lib/health/stats'
 import { useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 
 export function TrendsView() {
   const { t } = useT()
@@ -43,15 +44,17 @@ export function TrendsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{t('nav.trends')}</h1>
-        <Tabs value={window} onValueChange={(v) => setWindow(v as '30' | '90')}>
-          <TabsList>
-            <TabsTrigger value="30">30 {t('common.days')}</TabsTrigger>
-            <TabsTrigger value="90">90 {t('common.days')}</TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <PageHeader
+        view="trends"
+        actions={
+          <Tabs value={window} onValueChange={(v) => setWindow(v as '30' | '90')}>
+            <TabsList>
+              <TabsTrigger value="30">30 {t('common.days')}</TabsTrigger>
+              <TabsTrigger value="90">90 {t('common.days')}</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        }
+      />
 
       {/* Stats strip */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

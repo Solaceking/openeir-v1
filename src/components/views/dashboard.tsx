@@ -5,6 +5,7 @@ import { motion } from 'framer-motion'
 import {
   HeartPulse, Droplets, Activity, Flame, Sparkles, Send, Plus,
   Check, X, Clock, AlertTriangle, ChevronRight, Loader2,
+  PenLine, MessagesSquare, Pill, Siren,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ import { Progress } from '@/components/ui/progress'
 import { BpTrendChart, ScoreRadar } from '@/components/charts'
 import { InsightFeed } from '@/components/insight-card'
 import { BriefingCard } from '@/components/briefing-card'
+import { PageHeader } from '@/components/page-header'
 import { useStats, useInsights, useLogMedication, useAskEir } from '@/lib/api-client'
 import { useUI } from '@/lib/store'
 import { categorizeBp, BP_CATEGORIES } from '@/lib/health/bp'
@@ -63,17 +65,42 @@ export function DashboardView() {
   return (
     <div className="space-y-5">
       {/* Greeting */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t(greetingKey(hour), { name: s.profile.fullName.split(' ')[0] })}</h1>
-          <p className="text-sm text-muted-foreground">
+      <PageHeader
+        view="dashboard"
+        title={t(greetingKey(hour), { name: s.profile.fullName.split(' ')[0] })}
+        subtitle={
+          <>
             {new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
             {' · '}{t('dashboard.streak')}: <b className="text-foreground">{s.streakDays} {t('dashboard.days')}</b>
-          </p>
-        </div>
-        <Button onClick={() => setView('record')} size="lg" className="min-h-[44px] gap-2">
-          <Plus className="h-4 w-4" aria-hidden /> {t('dashboard.quickRecord')}
-        </Button>
+          </>
+        }
+        actions={
+          <Button onClick={() => setView('record')} className="min-h-[44px] gap-2">
+            <Plus className="h-4 w-4" aria-hidden /> {t('dashboard.quickRecord')}
+          </Button>
+        }
+      />
+
+      {/* Quick actions — one tap to the essentials */}
+      <div className="grid grid-cols-4 gap-2">
+        {([
+          ['record', t('nav.record'), PenLine],
+          ['talk', t('nav.talk'), MessagesSquare],
+          ['medications', t('nav.medications'), Pill],
+          ['safety', t('nav.safety'), Siren],
+        ] as const).map(([key, lbl, I]) => (
+          <button
+            key={key}
+            onClick={() => setView(key)}
+            className="group flex min-h-[72px] flex-col items-center justify-center gap-1.5 rounded-2xl border bg-card p-2 transition-all hover:-translate-y-0.5 hover:border-primary/40"
+            aria-label={lbl}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground" aria-hidden>
+              <I className="h-4 w-4" />
+            </span>
+            <span className="w-full truncate text-center text-[10px] font-semibold text-muted-foreground group-hover:text-foreground">{lbl}</span>
+          </button>
+        ))}
       </div>
 
       {/* Critical alerts */}
@@ -145,7 +172,7 @@ export function DashboardView() {
                   <circle cx="64" cy="64" r="54" fill="none" stroke="currentColor" strokeOpacity="0.08" strokeWidth="12" />
                   <motion.circle
                     cx="64" cy="64" r="54" fill="none"
-                    stroke={s.score.total >= 70 ? '#0d9488' : '#f59e0b'} strokeWidth="12" strokeLinecap="round"
+                    stroke={s.score.total >= 70 ? 'var(--chart-1)' : 'var(--metric)'} strokeWidth="12" strokeLinecap="round"
                     strokeDasharray={`${(s.score.total / 100) * 339.3} 339.3`}
                     transform="rotate(-90 64 64)"
                     initial={{ strokeDasharray: '0 339.3' }}
@@ -200,7 +227,7 @@ export function DashboardView() {
                 </div>
               ))}
               {s.refills.filter((r) => r.urgent).length > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+                <div className="rounded-lg border border-metric/40 bg-metric/10 px-3 py-2 text-xs text-metric-foreground">
                   Refill soon: {s.refills.filter((r) => r.urgent).map((r) => r.med.name).join(', ')} — {s.refills.find((r) => r.urgent)?.daysLeft} days left
                 </div>
               )}

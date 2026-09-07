@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Accounts, roles & login (RBAC)
+- **Local accounts with three roles**: `admin` (everything — accounts, AI providers, data export, care), `caregiver` (daily care — log readings & doses, talk, safety), `viewer` (Family · view — read-only vitals + chat with Eir)
+- **Zero-breakage upgrade path**: no accounts → open household mode (classic behavior, no sign-in). Creating the first account (Settings → Profile & accounts → Add account) instantly switches the instance to sign-in required; the first account is always an admin
+- Node-runtime request proxy enforces the role matrix on every page and API route; explicitly public endpoints (token links for SOS card / companion pairing, LAN agent API, docker healthcheck) keep their own trust model
+- Hardened account management: scrypt-salted password hashing, DB-side session tokens (cookie holds raw token, DB stores only its SHA-256), 30-day sessions, self-demotion/lock-out guards (cannot demote/disable/delete yourself, cannot remove the last active admin), role/password changes revoke live sessions
+- Branded sign-in page; user card in the sidebar footer (avatar, display name, role badge, change password, sign out); navigation, quick actions and settings categories filter by role; viewer mutations blocked at API level (403 with a friendly message)
+
+### Brand system — apothecary / heritage expedition
+- New palette: cream paper `#FDFBF5` background, deep teal `#0F766E` primary lines & fills, warm amber `#F2A65A` **strictly reserved** for the leaf cluster and isolated key metrics (low Eir Score, urgent refills, review-needed states)
+- Flat vector discipline: no gradients, no 3D, no drop shadows on brand surfaces — new flat logo (teal crossed pills + amber leaf cluster), flat chat bubbles, flat orb button, warm sand borders for separation
+- Dark mode keeps the same bones (clinical-night teal ink)
+
+### Voice + chat — one tab
+- The standalone Voice view is gone; **logging by voice now lives inside Talk**: the composer's "+" opens the "Log by voice" sheet (mic stage → spoken readback → confirm card → typed fallback → examples), same deterministic parser, `source: voice` provenance
+- Voice preferences (engine, neural voice catalog, rate, auto-speak, preview) moved to Settings → Voice & audio
+- Persisted view migration: saved `voice` view silently maps to `talk`
+
+### A more awesome chat
+- Rich thread header: breadcrumbs (Home / Daily care / Talk), serif wordmark, Live-conversation button, conversation options menu
+- Flat brand bubbles with teal spine on Eir's side, hover copy button on messages, icon-tiled empty-state suggestions, animated failure banner, "+" attach menu
+
+### Shell, navigation & information architecture
+- **New sidebar system**: grouped rail (Home / Daily care / Insight / Safety / System) with brand block, animated active pill, collapse-to-icon-rail (persisted), user card footer
+- **Breadcrumbs everywhere**: every view opens with a PageHeader (Home / Group / Page) + serif title + subtitle + actions slot
+- **Settings regrouped** from 8 busy tabs into a visual category grid → focused panels: Profile & accounts · AI & agents · Health (clinical targets + memory) · Alerts & briefing · Voice & audio · Appearance & language · Data & backup · Emergency & safety (deep-links to Safety)
+- Dashboard feels less text-heavy: quick-action tiles (Record / Talk / Medications / Safety), compact greeting header, amber-disciplined score ring & refill warning
+- **New splash screen**: cream paper, animated flat logo, serif wordmark, hairline progress — shown while profile & session hydrate
+
 ### AI settings — harness rescan
 - **Rescan button** in Settings → AI → Agent harness: re-probes installed CLIs (`--version` + credential files) on demand, so installing a CLI or logging in mid-session shows up without a page reload — Buzz-style registry scan (explicit, timestamped, idempotent, never disrupts attached providers)
 - Scans cached 60s server-side (`GET /api/ai/agents` serves fresh-or-cached with `scannedAt`/`cached`; `POST` forces a re-probe); panel shows "Last scanned … ago" and toasts the diff ("New harness detected: Claude Code", "Login detected: Codex CLI", "no changes")

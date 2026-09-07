@@ -1,8 +1,8 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Check, CheckCheck, Mic } from 'lucide-react'
+import { Check, CheckCheck, Copy, Mic } from 'lucide-react'
 import { OpenEirLogo } from '@/components/logo'
 import { ActionCard, type ChatAction } from '@/components/talk/action-card'
 import { useT } from '@/lib/i18n'
@@ -28,16 +28,25 @@ export const MessageBubble = memo(function MessageBubble({ m }: { m: ChatBubbleM
   const { t } = useT()
   const isUser = m.role === 'user'
   const revealed = m.revealLen === undefined ? m.content.length : m.revealLen
+  const [copied, setCopied] = useState(false)
+
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(m.content)
+      setCopied(true)
+      window.setTimeout(() => setCopied(false), 1400)
+    } catch { /* clipboard unavailable — ignore */ }
+  }
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 10, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ type: 'spring', stiffness: 480, damping: 34, mass: 0.7 }}
-      className={`flex w-full gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`group flex w-full gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
       {!isUser && (
-        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-teal-500/20 to-teal-500/5 ring-1 ring-teal-500/25" aria-hidden>
+        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-card" aria-hidden>
           <OpenEirLogo className="h-5 w-5" />
         </div>
       )}
@@ -45,8 +54,8 @@ export const MessageBubble = memo(function MessageBubble({ m }: { m: ChatBubbleM
         <div
           className={
             isUser
-              ? 'eir-bubble-user rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13.5px] leading-relaxed text-white shadow-sm'
-              : 'eir-bubble-eir rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13.5px] leading-relaxed shadow-sm'
+              ? 'eir-bubble-user rounded-2xl rounded-br-md px-3.5 py-2.5 text-[13.5px] leading-relaxed'
+              : 'eir-bubble-eir rounded-2xl rounded-bl-md px-3.5 py-2.5 text-[13.5px] leading-relaxed'
           }
         >
           {m.content.slice(0, revealed)}
@@ -61,11 +70,20 @@ export const MessageBubble = memo(function MessageBubble({ m }: { m: ChatBubbleM
           {m.channel === 'voice' && <Mic className="h-3 w-3" aria-label={t('talk.viaVoice')} />}
           {isUser && (
             m.status === 'sending' ? <Check className="h-3 w-3 opacity-60" aria-label={t('talk.sending')} />
-            : m.status === 'sent' ? <CheckCheck className="h-3 w-3 text-teal-600 dark:text-teal-400" aria-label={t('talk.delivered')} />
+            : m.status === 'sent' ? <CheckCheck className="h-3 w-3 text-primary" aria-label={t('talk.delivered')} />
             : <span className="font-medium text-destructive">{t('talk.failed')}</span>
           )}
           {!isUser && m.provider?.label && (
             <span className="hidden sm:inline opacity-70">· {m.provider.label}{m.provider.model ? ` · ${m.provider.model}` : ''}</span>
+          )}
+          {!isUser && revealed >= m.content.length && (
+            <button
+              onClick={() => void copy()}
+              className="ml-0.5 rounded p-0.5 opacity-0 transition-opacity hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+              aria-label={t('talk.copy')}
+            >
+              {copied ? <Check className="h-3 w-3 text-primary" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+            </button>
           )}
         </div>
       </div>

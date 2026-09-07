@@ -4,6 +4,26 @@ Base: same origin as the UI. All request bodies are JSON and validated with zod 
 
 ---
 
+## Accounts & access control (RBAC)
+
+OpenEir runs in **open household mode** until the first account exists — no sign-in, classic behavior. Once an account is created (Settings → Profile & accounts), every page and API request requires a session; the request proxy enforces the role matrix.
+
+Roles: `admin` (everything) · `caregiver` (daily care mutations) · `viewer` (read-only + chat + SOS). Public-by-design endpoints keep their own trust model: `/api/auth/status`, `/api/auth/login`, `/api/auth/logout`, `/api/health`, `/api/agent/*`, `/api/companion/view|accept|checkin`, `POST /api/emergency/sos`.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| `GET` | `/api/auth/status` | public | `{ mode: 'open' \| 'accounts' }` |
+| `POST` | `/api/auth/login` | public | Body: `username`, `password`. Sets `openeir_session` HttpOnly cookie (30d). Uniform 401 — never reveals whether the username exists. |
+| `DELETE` | `/api/auth/login` | public | Sign out (destroys the server-side session). |
+| `GET` | `/api/auth/me` | any | `{ mode, role, account }`; `role: 'admin'` in open mode. |
+| `PUT` | `/api/auth/password` | session | Body: `current`, `next` (min 8). |
+| `GET` | `/api/auth/accounts` | admin | List accounts (never hashes). |
+| `POST` | `/api/auth/accounts` | admin* | Create. Body: `username` (lowercase `[a-z0-9._-]`), `password` (min 8), `displayName?`, `role`. *Allowed without a session while the instance is open — the first account is forced to `admin`. |
+| `PATCH` | `/api/auth/accounts/:id` | admin | Body: `displayName?`, `role?`, `active?`, `password?`. Self-demotion/self-disable rejected; last active admin protected; role/password/active changes revoke that account's sessions. |
+| `DELETE` | `/api/auth/accounts/:id` | admin | Hard delete (sessions cascade). Self-delete and last-admin-delete rejected. |
+
+---
+
 ## Readings
 
 | Method | Path | Notes |

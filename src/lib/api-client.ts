@@ -89,6 +89,62 @@ export interface InsightRow {
   origin: string; status: string; pinned: boolean; createdAt: string
 }
 
+// ---------- auth ----------
+
+export interface AuthMe {
+  mode: 'open' | 'accounts'
+  role: 'admin' | 'caregiver' | 'viewer' | null
+  account: { id: string; username: string; displayName: string; role: string } | null
+}
+
+export function useAuth() {
+  return useQuery<AuthMe>({
+    queryKey: ['auth-me'],
+    queryFn: () => j('/api/auth/me'),
+    staleTime: 60_000,
+  })
+}
+
+export interface AccountRow {
+  id: string; username: string; displayName: string
+  role: string; active: boolean; createdAt: string
+}
+
+export function useAccounts(enabled: boolean) {
+  return useQuery<{ accounts: AccountRow[]; mode: 'open' | 'accounts' }>({
+    queryKey: ['accounts'],
+    queryFn: () => j('/api/auth/accounts'),
+    enabled,
+  })
+}
+
+export function useAccountMutations() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ['accounts'] })
+  const create = useMutation({
+    mutationFn: (input: { username: string; password: string; displayName?: string; role: string }) =>
+      j('/api/auth/accounts', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => { refresh(); qc.invalidateQueries({ queryKey: ['auth-me'] }) },
+  })
+  const update = useMutation({
+    mutationFn: ({ id, ...patch }: { id: string } & Record<string, unknown>) =>
+      j(`/api/auth/accounts/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    onSuccess: () => { refresh(); qc.invalidateQueries({ queryKey: ['auth-me'] }) },
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => j(`/api/auth/accounts/${id}`, { method: 'DELETE' }),
+    onSuccess: () => { refresh(); qc.invalidateQueries({ queryKey: ['auth-me'] }) },
+  })
+  return { create, update, remove }
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (input: { current: string; next: string }) =>
+      j('/api/auth/password', { method: 'PUT', body: JSON.stringify(input) }),
+  })
+}
+
 // ---------- hooks ----------
 export function useStats() {
   return useQuery<StatsResponse>({

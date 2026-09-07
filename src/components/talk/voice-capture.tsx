@@ -1,31 +1,27 @@
 'use client'
 
-// OpenEir — Voice view. Speak a reading or a dose; Eir parses it locally,
-// reads it back aloud, and waits for an explicit confirm. Firefox (no STT)
-// and unsupported browsers degrade to the same parser via the text box —
-// identical flow, zero second-class paths.
+// OpenEir — voice capture, embedded in the Talk composer ("+" → Log by voice).
+// Speak a reading or a dose; Eir parses it locally, reads it back aloud, and
+// waits for an explicit confirm. Firefox (no STT) and unsupported browsers
+// degrade to the same parser via the text box — identical flow, zero
+// second-class paths. Voice preferences live in Settings → Voice & audio.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  Mic, Square, AudioLines, Loader2, Copy, Check, Volume2,
+  Mic, Square, AudioLines, Loader2, Check,
   HeartPulse, Droplets, Pill, StickyNote, CircleHelp,
 } from 'lucide-react'
-import { toast } from 'sonner'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { useVoice, matchMedication } from '@/hooks/use-voice'
 import { useMedications } from '@/lib/api-client'
-import { DEFAULT_EDGE_VOICE, useUI } from '@/lib/store'
-import { speak, stopSpeaking } from '@/lib/voice/tts'
 import { useT } from '@/lib/i18n'
 import { VOICE_CONFIDENCE_THRESHOLD, type VoiceIntentFields } from '@/lib/voice/types'
 
@@ -33,52 +29,21 @@ const EXAMPLES = [
   'Blood pressure 120 over 80',
   'BP one twenty-two over eighty, pulse 71',
   'Glucose 6.4 fasting',
-  'Blood sugar 105 after breakfast',
   'I took my metformin at 8',
   'I skipped my lisinopril this morning',
 ]
-
-const PREVIEW_TEXT = 'Blood pressure one twenty-two over seventy-eight, pulse sixty-four. Everything looks steady today.'
-
-interface CatalogVoice { id: string; label: string; gender: 'Female' | 'Male'; accent: string; note?: string }
 
 const KIND_ICON = {
   bp: HeartPulse, glucose: Droplets, med_taken: Pill, med_skipped: Pill, note: StickyNote, unknown: CircleHelp,
 } as const
 
-export function VoiceView() {
+export function VoiceCapturePanel({ onDone }: { onDone?: () => void }) {
   const { t } = useT()
   const medsQ = useMedications()
-  const { voiceAutoSpeak, voiceRate, voiceEngine, edgeVoice, setVoicePrefs } = useUI()
   const v = useVoice()
   const [typed, setTyped] = useState('')
-  const [voices, setVoices] = useState<CatalogVoice[]>([])
-  const [previewing, setPreviewing] = useState(false)
-  const previewRef = useRef(false)
 
-  useEffect(() => {
-    let alive = true
-    fetch('/api/voice/tts')
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: { voices?: CatalogVoice[] } | null) => { if (alive && d?.voices) setVoices(d.voices) })
-      .catch(() => { /* picker stays empty; engine falls back to browser voice */ })
-    return () => { alive = false; stopSpeaking() }
-  }, [])
-
-  const accents = [...new Set(voices.map((x) => x.accent))]
-
-  const preview = () => {
-    if (previewRef.current) { stopSpeaking(); previewRef.current = false; setPreviewing(false); return }
-    previewRef.current = true
-    setPreviewing(true)
-    speak(PREVIEW_TEXT, {
-      engine: 'edge',
-      edgeVoice: edgeVoice ?? DEFAULT_EDGE_VOICE,
-      rate: voiceRate,
-      onEnd: () => { previewRef.current = false; setPreviewing(false) },
-      onError: () => { previewRef.current = false; setPreviewing(false) },
-    })
-  }
+  useEffect(() => () => { v.stop() }, [])
 
   const meds = medsQ.data?.medications ?? []
   const matchedMed = v.intent && (v.intent.fields.kind === 'med_taken' || v.intent.fields.kind === 'med_skipped')
@@ -90,6 +55,11 @@ export function VoiceView() {
     v.reset()
     v.adopt(typed.trim())
     setTyped('')
+  }
+
+  const confirmAndClose = async () => {
+    await v.confirm()
+    onDone?.()
   }
 
   const patchBp = (patch: Partial<Extract<VoiceIntentFields, { kind: 'bp' }>>) => {
@@ -108,31 +78,9 @@ export function VoiceView() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">{t('voice.title')}</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">{t('voice.subtitle')}</p>
-      </div>
-
-      {/* hands-free conversation CTA */}
-      <button
-        onClick={() => useUI.getState().setView('talk')}
-        className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-500/25 bg-gradient-to-r from-teal-500/10 via-teal-500/5 to-transparent px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-teal-500/45 hover:shadow-md"
-      >
-        <span className="flex items-center gap-3">
-          <span className="eir-orb-btn flex h-10 w-10 items-center justify-center rounded-full text-white shadow-md transition-transform group-hover:scale-105" aria-hidden>
-            <AudioLines className="h-5 w-5" />
-          </span>
-          <span>
-            <span className="block text-sm font-bold">{t('voice.talkCta')}</span>
-            <span className="block text-xs text-muted-foreground">{t('voice.talkCtaHint')}</span>
-          </span>
-        </span>
-        <span className="text-teal-600 transition-transform group-hover:translate-x-0.5 dark:text-teal-300" aria-hidden>→</span>
-      </button>
-
       {/* capability notice */}
       {(sttNotice || !v.ttsSupported) && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">
+        <div className="rounded-lg border border-metric/40 bg-metric/10 px-3 py-2 text-xs text-metric-foreground">
           {sttNotice}
           {!v.ttsSupported && <span className="block">{t('voice.ttsMissing')}</span>}
         </div>
@@ -140,7 +88,7 @@ export function VoiceView() {
 
       {/* mic stage */}
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-8">
+        <CardContent className="flex flex-col items-center gap-4 py-6">
           <div className="relative">
             {v.phase === 'listening' && (
               <>
@@ -152,16 +100,16 @@ export function VoiceView() {
               type="button"
               onClick={() => (v.phase === 'listening' ? v.stop() : v.start())}
               disabled={!v.sttSupported || v.phase === 'parsed' || v.phase === 'saving'}
-              className={`relative flex h-28 w-28 items-center justify-center rounded-full shadow-lg transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-40 ${
-                v.phase === 'listening' ? 'bg-destructive text-destructive-foreground' : 'bg-primary text-primary-foreground hover:scale-[1.03]'
+              className={`relative flex h-24 w-24 items-center justify-center rounded-full transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-40 ${
+                v.phase === 'listening' ? 'bg-destructive text-destructive-foreground' : 'eir-orb-btn hover:scale-[1.03]'
               }`}
               aria-label={v.phase === 'listening' ? t('voice.stop') : t('voice.tapToSpeak')}
             >
               {v.phase === 'listening'
-                ? <Square className="h-9 w-9" aria-hidden />
+                ? <Square className="h-8 w-8" aria-hidden />
                 : v.phase === 'saving'
-                  ? <Loader2 className="h-10 w-10 animate-spin" aria-hidden />
-                  : <Mic className="h-12 w-12" aria-hidden />}
+                  ? <Loader2 className="h-9 w-9 animate-spin" aria-hidden />
+                  : <Mic className="h-10 w-10" aria-hidden />}
             </button>
           </div>
           <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -184,7 +132,7 @@ export function VoiceView() {
 
       {/* confirm card */}
       {v.intent && v.phase !== 'listening' && (
-        <Card className={v.intent.needsConfirm || v.intent.confidence < VOICE_CONFIDENCE_THRESHOLD ? 'border-amber-300 dark:border-amber-800' : 'border-teal-300 dark:border-teal-800'}>
+        <Card className={v.intent.needsConfirm || v.intent.confidence < VOICE_CONFIDENCE_THRESHOLD ? 'border-metric' : 'border-primary/40'}>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center justify-between text-base">
               <span className="flex items-center gap-2">
@@ -290,7 +238,7 @@ export function VoiceView() {
 
             <div className="flex gap-2 pt-1">
               <Button
-                onClick={() => void v.confirm()}
+                onClick={() => void confirmAndClose()}
                 disabled={v.phase === 'saving' || v.intent.fields.kind === 'unknown' || ((v.intent.fields.kind === 'med_taken' || v.intent.fields.kind === 'med_skipped') && !matchedMed)}
                 className="min-h-[46px] flex-1 gap-1.5"
                 size="lg"
@@ -335,70 +283,6 @@ export function VoiceView() {
               ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* voice settings */}
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-base">{t('voice.settingsTitle')}</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <Label htmlFor="v-autospeak" className="text-sm">{t('voice.autoSpeak')}</Label>
-            <Switch id="v-autospeak" checked={voiceAutoSpeak} onCheckedChange={(c) => setVoicePrefs({ voiceAutoSpeak: c })} />
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="v-engine" className="text-sm">{t('voice.engine')}</Label>
-              <Select value={voiceEngine} onValueChange={(x) => setVoicePrefs({ voiceEngine: x as 'edge' })}>
-                <SelectTrigger id="v-engine" className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="edge">{t('voice.engineEdge')}</SelectItem>
-                  <SelectItem value="browser">{t('voice.engineBrowser')}</SelectItem>
-                </SelectContent>
-              </Select>
-              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                {voiceEngine === 'edge' ? t('voice.engineEdgeHint') : t('voice.engineBrowserHint')}
-              </p>
-            </div>
-            <div>
-              <Label htmlFor="v-edgevoice" className="text-sm">{t('voice.voiceName')}</Label>
-              <Select
-                value={edgeVoice || DEFAULT_EDGE_VOICE}
-                onValueChange={(x) => setVoicePrefs({ edgeVoice: x })}
-                disabled={voiceEngine !== 'edge' || voices.length === 0}
-              >
-                <SelectTrigger id="v-edgevoice" className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {accents.map((accent) => (
-                    <SelectGroup key={accent}>
-                      <SelectLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">{accent}</SelectLabel>
-                      {voices.filter((x) => x.accent === accent).map((x) => (
-                        <SelectItem key={x.id} value={x.id}>
-                          {x.label} · {x.gender}{x.note ? ` — ${x.note}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectGroup>
-                  ))}
-                </SelectContent>
-              </Select>
-              {voiceEngine === 'edge' && (
-                <Button variant="outline" size="sm" onClick={preview} className="mt-2 gap-1.5">
-                  {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Volume2 className="h-3.5 w-3.5" aria-hidden />}
-                  {previewing ? t('voice.previewing') : t('voice.preview')}
-                </Button>
-              )}
-            </div>
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <Label className="text-sm">{t('voice.rate')}</Label>
-              <span className="text-xs tabular-nums text-muted-foreground">{voiceRate.toFixed(1)}×</span>
-            </div>
-            <Slider value={[voiceRate]} min={0.6} max={1.6} step={0.1} onValueChange={(x) => setVoicePrefs({ voiceRate: x[0] })} className="mt-2 max-w-xs" aria-label={t('voice.rate')} />
-          </div>
-          <p className="text-[11px] leading-relaxed text-muted-foreground">{t('voice.privacyNote')}</p>
         </CardContent>
       </Card>
     </div>

@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useStats } from '@/lib/api-client'
 import { useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 
 const SECTIONS = [
   { key: 'summary', label: 'Overview & stats' },
@@ -43,7 +44,7 @@ export function ReportsView() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">{t('reports.title')}</h1>
+      <PageHeader view="reports" />
 
       <div className="grid gap-4 lg:grid-cols-5">
         <Card className="lg:col-span-3">

@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { useProfile } from '@/lib/api-client'
+import { PageHeader } from '@/components/page-header'
 
 // ---- types -----------------------------------------------------------------
 
@@ -218,10 +219,10 @@ export function SafetyView() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-bold">Safety</h1>
-        <p className="mt-0.5 text-sm text-muted-foreground">One hold, and everything that matters reaches the right people.</p>
-      </div>
+      <PageHeader
+        view="safety"
+        subtitle="One hold, and everything that matters reaches the right people."
+      />
 
       {/* ---- SOS trigger ---- */}
       <div className="relative overflow-hidden rounded-3xl border border-red-900/20 bg-gradient-to-b from-red-950/10 to-transparent p-6 dark:border-red-500/20">

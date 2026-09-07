@@ -22,6 +22,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-metric: var(--metric);
+  --color-metric-foreground: var(--metric-foreground);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -44,74 +46,87 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ---------------------------------------------------------------
+   OpenEir brand system — "apothecary / heritage expedition"
+   Background  #FDFBF5  cream paper
+   Primary     #0F766E  deep teal — lines & fills
+   Accent      #F2A65A  warm amber — strictly the leaf cluster
+                        and isolated key metrics (warnings, low score)
+   Flat vector. Uniform stroke weight. No gradients, no 3D,
+   no drop shadows. Separation comes from warm borders, not elevation.
+---------------------------------------------------------------- */
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.51 0.095 178);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0.01 178);
-  --secondary-foreground: oklch(0.3 0.05 178);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.96 0.02 178);
-  --accent-foreground: oklch(0.3 0.05 178);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.55 0.09 178);
-  --chart-1: oklch(0.6 0.12 184.704);
-  --chart-2: oklch(0.828 0.189 84.429);
-  --chart-3: oklch(0.705 0.17 55);
-  --chart-4: oklch(0.637 0.237 25.331);
-  --chart-5: oklch(0.6 0.11 222);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --background: #fdfbf5;
+  --foreground: #20302c;
+  --card: #fffefa;
+  --card-foreground: #20302c;
+  --popover: #fffefa;
+  --popover-foreground: #20302c;
+  --primary: #0f766e;
+  --primary-foreground: #fdfbf5;
+  --secondary: #eaf2ee;
+  --secondary-foreground: #0b5d56;
+  --muted: #f4efe3;
+  --muted-foreground: #6e7672;
+  --accent: #e2ede8;
+  --accent-foreground: #0b5d56;
+  --destructive: #b3413c;
+  --border: #e7e0d0;
+  --input: #e7e0d0;
+  --ring: #0f766e;
+  --metric: #f2a65a;
+  --metric-foreground: #47300f;
+  --chart-1: #0f766e;
+  --chart-2: #f2a65a;
+  --chart-3: #14b8a6;
+  --chart-4: #c2703e;
+  --chart-5: #75a99f;
+  --sidebar: #f8f4ea;
+  --sidebar-foreground: #20302c;
+  --sidebar-primary: #0f766e;
+  --sidebar-primary-foreground: #fdfbf5;
+  --sidebar-accent: #e2ede8;
+  --sidebar-accent-foreground: #0b5d56;
+  --sidebar-border: #e7e0d0;
+  --sidebar-ring: #0f766e;
 }
 
 .dark {
-  /* deep ink with a whisper of teal — “clinical night” */
-  --background: oklch(0.168 0.014 210);
-  --foreground: oklch(0.97 0.005 200);
-  --card: oklch(0.215 0.016 210);
-  --card-foreground: oklch(0.97 0.005 200);
-  --popover: oklch(0.215 0.016 210);
-  --popover-foreground: oklch(0.97 0.005 200);
-  --primary: oklch(0.78 0.1 178);
-  --primary-foreground: oklch(0.2 0.04 178);
-  --secondary: oklch(0.269 0.02 178);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.28 0.03 178);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.6 0.09 178);
-  --chart-1: oklch(0.696 0.17 162.48);
-  --chart-2: oklch(0.769 0.188 70.08);
-  --chart-3: oklch(0.705 0.17 55);
-  --chart-4: oklch(0.637 0.237 25.331);
-  --chart-5: oklch(0.7 0.11 222);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* clinical night — deep teal ink, same brand bones */
+  --background: #101b19;
+  --foreground: #ecf3ef;
+  --card: #172522;
+  --card-foreground: #ecf3ef;
+  --popover: #172522;
+  --popover-foreground: #ecf3ef;
+  --primary: #4cb5a7;
+  --primary-foreground: #0a1512;
+  --secondary: #1d302c;
+  --secondary-foreground: #c9e5dd;
+  --muted: #1d2926;
+  --muted-foreground: #93a39d;
+  --accent: #1f3a35;
+  --accent-foreground: #c9e5dd;
+  --destructive: #e07872;
+  --border: #ffffff14;
+  --input: #ffffff1f;
+  --ring: #4cb5a7;
+  --metric: #f2a65a;
+  --metric-foreground: #2b1a05;
+  --chart-1: #4cb5a7;
+  --chart-2: #f2a65a;
+  --chart-3: #7fd0c4;
+  --chart-4: #d98d5f;
+  --chart-5: #8fb8ae;
+  --sidebar: #14211f;
+  --sidebar-foreground: #ecf3ef;
+  --sidebar-primary: #4cb5a7;
+  --sidebar-primary-foreground: #0a1512;
+  --sidebar-accent: #1f3a35;
+  --sidebar-accent-foreground: #c9e5dd;
+  --sidebar-border: #ffffff14;
+  --sidebar-ring: #4cb5a7;
 }
 
 @layer base {
@@ -145,14 +160,7 @@ main table, .numeric {
 
 /* brand-tinted selection */
 ::selection {
-  background: color-mix(in oklab, var(--primary) 22%, transparent);
-}
-
-/* refined card elevation for dark clinical night */
-.dark .elevate {
-  box-shadow:
-    0 1px 2px oklch(0 0 0 / 0.4),
-    0 0 0 1px oklch(1 0 0 / 0.04) inset;
+  background: #0f766e2e;
 }
 
 /* ---------- OpenEir accessibility & polish ---------- */
@@ -165,27 +173,27 @@ html.large-text .text-xs { font-size: 0.85rem; }
 
 /* High contrast mode (WCAG AAA-leaning) */
 html.high-contrast {
-  --background: oklch(100% 0 0);
-  --foreground: oklch(0% 0 0);
-  --card: oklch(100% 0 0);
-  --card-foreground: oklch(0% 0 0);
-  --muted-foreground: oklch(22% 0 0);
-  --border: oklch(30% 0 0);
-  --primary: oklch(38% 0.12 178);
-  --primary-foreground: oklch(100% 0 0);
-  --ring: oklch(0% 0 0);
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --muted-foreground: #222222;
+  --border: #444444;
+  --primary: #0b5d56;
+  --primary-foreground: #ffffff;
+  --ring: #000000;
   --ring-width: 3px;
 }
 html.high-contrast.dark {
-  --background: oklch(0% 0 0);
-  --foreground: oklch(100% 0 0);
-  --card: oklch(8% 0 0);
-  --card-foreground: oklch(100% 0 0);
-  --muted-foreground: oklch(85% 0 0);
-  --border: oklch(80% 0 0);
-  --primary: oklch(85% 0.14 178);
-  --primary-foreground: oklch(0% 0 0);
-  --ring: oklch(100% 0 0);
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #0a0a0a;
+  --card-foreground: #ffffff;
+  --muted-foreground: #d9d9d9;
+  --border: #cccccc;
+  --primary: #5fd0c2;
+  --primary-foreground: #000000;
+  --ring: #ffffff;
 }
 html.high-contrast * {
   --border: oklch(45% 0 0 / var(--hc-border, 1));
@@ -227,27 +235,31 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 :root { --shell-chrome: 12.25rem; }
 @media (min-width: 768px) { :root { --shell-chrome: 9.75rem; } }
 
-/* Eir's side: a soft porcelain card; yours: the brand gradient */
+/* Eir's side: a porcelain card with a teal spine; yours: flat deep teal */
 .eir-bubble-eir {
   background: var(--card);
-  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 85%, transparent);
+  border-left: 3px solid color-mix(in oklab, var(--primary) 55%, transparent);
   color: var(--card-foreground);
 }
 .eir-bubble-user {
-  background: linear-gradient(135deg, oklch(0.55 0.11 178), oklch(0.47 0.1 195));
-  box-shadow: 0 1px 2px oklch(0.2 0.05 178 / 0.25);
+  background: var(--primary);
+  color: var(--primary-foreground);
 }
 .dark .eir-bubble-user {
-  background: linear-gradient(135deg, oklch(0.52 0.1 178), oklch(0.42 0.09 200));
+  background: color-mix(in oklab, var(--primary) 88%, black);
 }
 
-/* the orb button — a tiny piece of the voice scene living in the chrome */
+/* the orb button — flat brand teal, uniform stroke aesthetic */
 .eir-orb-btn {
-  background: radial-gradient(120% 120% at 30% 25%, oklch(0.72 0.13 175), oklch(0.5 0.11 190) 60%, oklch(0.38 0.09 205));
-  box-shadow: 0 2px 10px oklch(0.55 0.11 178 / 0.45), inset 0 1px 1px oklch(1 0 0 / 0.35);
+  background: var(--primary);
+  color: var(--primary-foreground);
+}
+.eir-orb-btn:hover {
+  background: color-mix(in oklab, var(--primary) 90%, black);
 }
 
-/* thread backdrop: barely-there radial depth */
+/* thread backdrop: barely-there warm paper */
 .eir-thread {
   background:
     radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--primary) 4%, transparent), transparent 60%),
@@ -277,6 +289,25 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .eir-chip { box-shadow: 0 1px 2px oklch(0 0 0 / 0.04); }
 .eir-chip:active { transform: scale(0.98); }
 
+/* ---------- splash screen ---------- */
+@keyframes eir-splash-logo {
+  0% { opacity: 0; transform: scale(0.86) translateY(6px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+@keyframes eir-splash-fade {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes eir-splash-bar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+.eir-splash-logo { animation: eir-splash-logo 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.eir-splash-word { animation: eir-splash-fade 0.7s ease-out 0.25s both; }
+.eir-splash-tag { animation: eir-splash-fade 0.7s ease-out 0.45s both; }
+.eir-splash-bar { animation: eir-splash-bar 1.4s ease-in-out 0.5s infinite; }
+
 @media (prefers-reduced-motion: reduce) {
-  .eir-live, .eir-dot, .eir-caret { animation: none; }
+  .eir-live, .eir-dot, .eir-caret,
+  .eir-splash-logo, .eir-splash-word, .eir-splash-tag, .eir-splash-bar { animation: none; }
 }

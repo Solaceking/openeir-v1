@@ -21,6 +21,7 @@ import { GLUCOSE_CONTEXTS, categorizeGlucose, GLUCOSE_CATEGORIES } from '@/lib/h
 import { bluetoothSupported, syncBloodPressureMonitor, syncGlucometer, type BpMeasurement } from '@/lib/bluetooth'
 import { SCAN_CONFIDENCE_THRESHOLD, type ScanResult } from '@/lib/ocr/types'
 import { useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 
 function Stepper({ id, label, value, onChange, min, max, unit }: {
   id: string; label: string; value: number | null; onChange: (v: number | null) => void
@@ -232,7 +233,7 @@ export function RecordView() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-bold tracking-tight">{t('record.title')}</h1>
+      <PageHeader view="record" subtitle={t('record.title')} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto w-full flex-wrap sm:w-auto">

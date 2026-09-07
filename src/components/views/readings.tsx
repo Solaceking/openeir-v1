@@ -13,6 +13,7 @@ import { useBpReadings, useGlucoseReadings, useDeleteReading, useProfile } from 
 import { categorizeBp, BP_CATEGORIES } from '@/lib/health/bp'
 import { categorizeGlucose, GLUCOSE_CATEGORIES, toMgdl } from '@/lib/health/glucose'
 import { useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 
 export function ReadingsView() {
   const { t } = useT()
@@ -28,28 +29,30 @@ export function ReadingsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{t('nav.readings')}</h1>
-        <div className="flex items-center gap-2">
-          <Select value={days} onValueChange={setDays}>
-            <SelectTrigger className="w-32" aria-label="Time window">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">7 days</SelectItem>
-              <SelectItem value="30">30 days</SelectItem>
-              <SelectItem value="90">90 days</SelectItem>
-              <SelectItem value="365">1 year</SelectItem>
-            </SelectContent>
-          </Select>
-          <a href={`/api/export?type=bp&format=csv`} download>
-            <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-3.5 w-3.5" aria-hidden />CSV</Button>
-          </a>
-          <a href={`/api/export?format=json`} download>
-            <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-3.5 w-3.5" aria-hidden />JSON</Button>
-          </a>
-        </div>
-      </div>
+      <PageHeader
+        view="readings"
+        actions={
+          <>
+            <Select value={days} onValueChange={setDays}>
+              <SelectTrigger className="w-32" aria-label="Time window">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">7 days</SelectItem>
+                <SelectItem value="30">30 days</SelectItem>
+                <SelectItem value="90">90 days</SelectItem>
+                <SelectItem value="365">1 year</SelectItem>
+              </SelectContent>
+            </Select>
+            <a href={`/api/export?type=bp&format=csv`} download>
+              <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-3.5 w-3.5" aria-hidden />CSV</Button>
+            </a>
+            <a href={`/api/export?format=json`} download>
+              <Button variant="outline" size="sm" className="gap-1.5"><Download className="h-3.5 w-3.5" aria-hidden />JSON</Button>
+            </a>
+          </>
+        }
+      />
 
       <Tabs defaultValue="bp">
         <TabsList>

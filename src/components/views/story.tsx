@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 
 interface StoryResponse {
   story: string
@@ -47,27 +48,25 @@ export function StoryView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{t('story.title')}</h1>
-          <p className="text-sm text-muted-foreground">
-            Week of {monday.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} · {t('story.subtitle')}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          {!story.data && (
-            <Button onClick={() => story.refetch()} disabled={story.isFetching} className="gap-2">
-              {story.isFetching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <BookOpen className="h-4 w-4" aria-hidden />}
-              {story.isFetching ? t('story.generating') : t('story.generate')}
-            </Button>
-          )}
-          {story.data && (
-            <Button variant="outline" onClick={regenerate} className="gap-2">
-              <RefreshCw className="h-4 w-4" aria-hidden /> Regenerate
-            </Button>
-          )}
-        </div>
-      </div>
+      <PageHeader
+        view="story"
+        subtitle={`Week of ${monday.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })} · ${t('story.subtitle')}`}
+        actions={
+          <>
+            {!story.data && (
+              <Button onClick={() => story.refetch()} disabled={story.isFetching} className="gap-2">
+                {story.isFetching ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <BookOpen className="h-4 w-4" aria-hidden />}
+                {story.isFetching ? t('story.generating') : t('story.generate')}
+              </Button>
+            )}
+            {story.data && (
+              <Button variant="outline" onClick={regenerate} className="gap-2">
+                <RefreshCw className="h-4 w-4" aria-hidden /> Regenerate
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {story.isFetching && (
         <Card>

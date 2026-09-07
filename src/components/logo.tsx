@@ -1,17 +1,20 @@
-// OpenEir — brand logo (icon only, no wordmark).
-// Two crossed structural pills + a white vitality node, teal gradient.
+// OpenEir — brand mark. Flat vector, apothecary / heritage expedition style.
+// Two crossed structural pills in deep teal + the amber leaf cluster at the
+// crossing point (the only place warm amber may live). Uniform shapes, no
+// gradients, no shadows.
 export function OpenEirLogo({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 80 80" className={className} role="img" aria-label="OpenEir logo">
-      <defs>
-        <linearGradient id="openeir-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#0d9488" />
-          <stop offset="100%" stopColor="#0f766e" />
-        </linearGradient>
-      </defs>
-      <rect x="30" y="10" width="20" height="60" rx="10" fill="url(#openeir-grad)" />
-      <rect x="10" y="30" width="60" height="20" rx="10" fill="url(#openeir-grad)" opacity="0.8" />
-      <circle cx="40" cy="40" r="6" fill="#ffffff" />
+      {/* vertical pill */}
+      <rect x="31" y="8" width="18" height="64" rx="9" fill="#0F766E" />
+      {/* horizontal pill */}
+      <rect x="8" y="31" width="64" height="18" rx="9" fill="#0F766E" opacity="0.82" />
+      {/* amber leaf cluster — strictly reserved accent */}
+      <g fill="#F2A65A">
+        <path d="M40 24c2.8 3.4 2.8 8.6 0 12-2.8-3.4-2.8-8.6 0-12Z" />
+        <path d="M29.5 34.5c4.4-.6 9 1.9 11 5.9-4.4.6-9-1.9-11-5.9Z" />
+        <path d="M50.5 34.5c-4.4-.6-9 1.9-11 5.9 4.4.6 9-1.9 11-5.9Z" />
+      </g>
     </svg>
   )
 }

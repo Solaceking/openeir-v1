@@ -318,3 +318,32 @@ model EmergencyEvent {
   @@index([status])
   @@index([startedAt])
 }
+
+/// Local account for access control. Roles: admin | caregiver | viewer.
+/// While zero active accounts exist the instance runs in open household mode
+/// (current behavior). Creating the first account switches auth_mode=accounts.
+model Account {
+  id           String        @id @default(cuid())
+  username     String        @unique
+  passwordHash String // scrypt: salt:hash (hex)
+  role         String        @default("caregiver") // admin | caregiver | viewer
+  displayName  String        @default("")
+  active       Boolean       @default(true)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  sessions     AuthSession[]
+}
+
+/// Server-side session — cookie holds the raw token, DB keeps only its hash.
+model AuthSession {
+  id        String    @id @default(cuid())
+  accountId String
+  account   Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique // sha256 hex of the raw cookie token
+  userAgent String?
+  createdAt DateTime  @default(now())
+  lastSeenAt DateTime @default(now())
+  expiresAt DateTime
+
+  @@index([accountId])
+}

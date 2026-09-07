@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Skeleton } from '@/components/ui/skeleton'
 import { useMedications, useMedicationMutations, useStats, useLogMedication } from '@/lib/api-client'
 import { useT } from '@/lib/i18n'
+import { PageHeader } from '@/components/page-header'
 
 const SCHEDULE_OPTIONS = ['08:00', '12:00', '20:00', '08:00+20:00']
 
@@ -60,12 +61,13 @@ export function MedicationsView() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold tracking-tight">{t('nav.medications')}</h1>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2"><Plus className="h-4 w-4" aria-hidden />{t('meds.addMedication')}</Button>
-          </DialogTrigger>
+      <PageHeader
+        view="medications"
+        actions={
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2"><Plus className="h-4 w-4" aria-hidden />{t('meds.addMedication')}</Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader><DialogTitle>{t('meds.addMedication')}</DialogTitle></DialogHeader>
             <div className="space-y-3">
@@ -101,8 +103,9 @@ export function MedicationsView() {
               <Button onClick={addMed} disabled={!name.trim() || create.isPending}>{t('common.save')}</Button>
             </DialogFooter>
           </DialogContent>
-        </Dialog>
-      </div>
+          </Dialog>
+        }
+      />
 
       {/* Adherence + interactions */}
       <div className="grid gap-4 md:grid-cols-3">

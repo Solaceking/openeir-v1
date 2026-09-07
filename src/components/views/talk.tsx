@@ -1,13 +1,18 @@
 'use client'
 
-// OpenEir — "Talk" view: one persistent conversation with Eir, WhatsApp-style,
-// grounded in the user's full health data. Deterministic health intents in the
-// user's text surface as in-chat confirmation cards; the composer carries
-// dictation; the orb button opens the immersive hands-free voice conversation.
+// OpenEir — "Talk" view: one persistent conversation with Eir, grounded in the
+// user's full health data. Voice and chat live here together:
+//   · the composer carries dictation (mic) and quick sends
+//   · "+" opens "Log by voice" — the reading/dose capture flow, in place
+//   · the orb opens the immersive hands-free conversation
+// Deterministic health intents surface as in-chat confirmation cards.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { SendHorizontal, Mic, MicOff, AudioLines, Eraser, RefreshCcw, Sparkles, Settings2 } from 'lucide-react'
+import {
+  SendHorizontal, Mic, MicOff, AudioLines, Eraser, RefreshCcw, Sparkles,
+  Settings2, Plus, TrendingUp, Activity, HeartPulse, Pill, X,
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -16,9 +21,13 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { MessageBubble, type ChatBubbleMessage } from '@/components/talk/message-bubble'
 import type { ChatAction } from '@/components/talk/action-card'
 import { VoiceMode } from '@/components/talk/voice-mode'
+import { VoiceCapturePanel } from '@/components/talk/voice-capture'
+import { PageHeader } from '@/components/page-header'
+import { OpenEirLogo } from '@/components/logo'
 import { startDictation, speechRecognitionSupported } from '@/lib/voice/stt'
 import { useT } from '@/lib/i18n'
 import { useUI } from '@/lib/store'
@@ -47,6 +56,8 @@ function dayLabel(iso: string): string {
   return d.toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })
 }
 
+const SUG_ICONS = [TrendingUp, Activity, HeartPulse, Pill]
+
 export function TalkView() {
   const { t } = useT()
   const SUGGESTIONS = [t('talk.sug1'), t('talk.sug2'), t('talk.sug3'), t('talk.sug4')]
@@ -56,6 +67,7 @@ export function TalkView() {
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [captureOpen, setCaptureOpen] = useState(false)
   const [dictating, setDictating] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
   const stopDictationRef = useRef<(() => void) | null>(null)
@@ -202,37 +214,43 @@ export function TalkView() {
   const lastDayRef = useRef<string | null>(null)
 
   return (
-    <div className="flex h-[calc(100vh-var(--shell-chrome,7.5rem))] min-h-[460px] flex-col md:h-[calc(100vh-var(--shell-chrome,7.5rem))]">
-      {/* header */}
-      <div className="flex items-center justify-between gap-2 pb-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="relative flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-teal-500/25 to-teal-500/5 ring-1 ring-teal-500/30">
-            <Sparkles className="h-5 w-5 text-teal-600 dark:text-teal-300" aria-hidden />
-            <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-background bg-teal-500 eir-live" aria-hidden />
-          </div>
-          <div className="min-w-0">
-            <h1 className="truncate text-base font-bold tracking-tight">{t('talk.title')}</h1>
-            <p className="truncate text-[11px] text-muted-foreground">{t('talk.subtitle')}</p>
-          </div>
-        </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={t('talk.options')}>
-              <Eraser className="h-4.5 w-4.5" />
+    <div className="flex h-[calc(100vh-var(--shell-chrome,7.5rem))] min-h-[460px] flex-col">
+      <PageHeader
+        view="talk"
+        title={t('talk.title')}
+        subtitle={t('talk.subtitle')}
+        icon={OpenEirLogo}
+        actions={
+          <>
+            {/* immersive voice conversation */}
+            <Button
+              variant="outline" size="sm"
+              className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
+              onClick={() => setVoiceOpen(true)}
+            >
+              <AudioLines className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">{t('talk.live')}</span>
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => setClearOpen(true)} className="text-destructive focus:text-destructive">
-              <Eraser className="mr-2 h-4 w-4" /> {t('talk.clear')}
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={t('talk.options')}>
+                  <Eraser className="h-4.5 w-4.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setClearOpen(true)} className="text-destructive focus:text-destructive">
+                  <Eraser className="mr-2 h-4 w-4" /> {t('talk.clear')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </>
+        }
+      />
 
       {/* thread */}
       <div
         ref={scrollRef}
-        className="scroll-slim eir-thread flex-1 space-y-3 overflow-y-auto rounded-2xl border bg-card/40 p-3 sm:p-4"
+        className="scroll-slim eir-thread mt-2 flex-1 space-y-3 overflow-y-auto rounded-2xl border bg-card/40 p-3 sm:p-4"
         role="log"
         aria-live="polite"
         aria-label={t('talk.title')}
@@ -242,23 +260,30 @@ export function TalkView() {
         )}
         {loaded && messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-5 px-4 text-center">
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-teal-500/20 to-violet-500/10 ring-1 ring-teal-500/25">
-              <Sparkles className="h-9 w-9 text-teal-600 dark:text-teal-300" aria-hidden />
+            <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl border border-primary/20 bg-card">
+              <OpenEirLogo className="h-12 w-12" aria-hidden />
+              <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
+                <Sparkles className="h-3.5 w-3.5" />
+              </span>
             </div>
             <div>
               <p className="text-sm font-semibold">{t('talk.emptyTitle')}</p>
               <p className="mx-auto mt-1 max-w-xs text-xs leading-relaxed text-muted-foreground">{t('talk.emptyBody')}</p>
             </div>
             <div className="grid w-full max-w-sm grid-cols-1 gap-2 sm:grid-cols-2">
-              {SUGGESTIONS.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => void send(s)}
-                  className="eir-chip rounded-full border bg-card px-3.5 py-2 text-left text-xs font-medium text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-teal-500/40 hover:text-foreground hover:shadow-sm"
-                >
-                  {s}
-                </button>
-              ))}
+              {SUGGESTIONS.map((s, i) => {
+                const I = SUG_ICONS[i % SUG_ICONS.length]
+                return (
+                  <button
+                    key={s}
+                    onClick={() => void send(s)}
+                    className="eir-chip flex min-h-[44px] items-center gap-2.5 rounded-xl border bg-card px-3.5 py-2 text-left text-xs font-medium text-muted-foreground transition-all hover:-translate-y-0.5 hover:border-primary/40 hover:text-foreground"
+                  >
+                    <I className="h-4 w-4 shrink-0 text-primary/70" aria-hidden />
+                    <span className="flex-1">{s}</span>
+                  </button>
+                )
+              })}
             </div>
           </div>
         )}
@@ -281,8 +306,8 @@ export function TalkView() {
         })}
         {sending && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-teal-500/20 to-teal-500/5 ring-1 ring-teal-500/25" aria-hidden>
-              <Sparkles className="h-4 w-4 text-teal-600 dark:text-teal-300" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-card" aria-hidden>
+              <OpenEirLogo className="h-5 w-5" />
             </div>
             <div className="eir-bubble-eir flex items-center gap-1.5 rounded-2xl rounded-bl-md px-4 py-3" aria-label={t('talk.thinking')}>
               {[0, 1, 2].map((i) => (
@@ -295,7 +320,7 @@ export function TalkView() {
           <div className="flex justify-center">
             <button
               onClick={retry}
-              className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-3.5 py-1.5 text-xs font-medium text-amber-700 dark:text-amber-300"
+              className="inline-flex items-center gap-1.5 rounded-full border border-metric/50 bg-metric/15 px-3.5 py-1.5 text-xs font-medium text-metric-foreground"
             >
               <RefreshCcw className="h-3 w-3" aria-hidden /> {t('talk.retry')}
             </button>
@@ -304,32 +329,63 @@ export function TalkView() {
       </div>
 
       {/* actionable failure banner — never a silent dead end */}
-      {sendError && (
-        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5">
-          <p className="min-w-0 text-xs leading-relaxed text-amber-800 dark:text-amber-200">{sendError}</p>
-          <Button
-            size="sm"
-            variant="outline"
-            className="h-7 shrink-0 gap-1.5 border-amber-500/40 text-amber-800 hover:bg-amber-500/15 dark:text-amber-200"
-            onClick={() => setView('settings')}
+      <AnimatePresence>
+        {sendError && (
+          <motion.div
+            initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 6 }}
+            className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-metric/50 bg-metric/15 px-3.5 py-2.5"
           >
-            <Settings2 className="h-3.5 w-3.5" aria-hidden /> {t('talk.openSettings')}
-          </Button>
-        </div>
-      )}
+            <p className="min-w-0 text-xs leading-relaxed text-metric-foreground">{sendError}</p>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 shrink-0 gap-1.5 border-metric/50 text-metric-foreground hover:bg-metric/20"
+              onClick={() => setView('settings')}
+            >
+              <Settings2 className="h-3.5 w-3.5" aria-hidden /> {t('talk.openSettings')}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* composer */}
       <div className="pt-3">
         <div className="flex items-end gap-2">
-          <button
-            onClick={() => setVoiceOpen(true)}
-            className="eir-orb-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white shadow-md transition-transform hover:scale-105 active:scale-95"
-            aria-label={t('talk.voiceMode')}
-            title={t('talk.voiceMode')}
-          >
-            <AudioLines className="h-5 w-5" aria-hidden />
-          </button>
-          <div className="flex min-w-0 flex-1 items-end gap-1 rounded-3xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-teal-500/40">
+          {/* log by voice — consolidated capture lives here */}
+          <Sheet open={captureOpen} onOpenChange={setCaptureOpen}>
+            <SheetTrigger asChild>
+              <button
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-secondary text-secondary-foreground transition-transform hover:scale-105 active:scale-95"
+                aria-label={t('talk.attach')}
+                title={t('talk.attach')}
+              >
+                <Plus className="h-5 w-5" aria-hidden />
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-safe pt-3 sm:max-w-lg sm:mx-auto">
+              <SheetHeader className="pb-1 pt-0">
+                <SheetTitle className="flex items-center justify-between gap-2 text-base">
+                  <span className="flex items-center gap-2">
+                    <AudioLines className="h-4.5 w-4.5 text-primary" aria-hidden />
+                    {t('talk.captureTitle')}
+                  </span>
+                  <button
+                    onClick={() => setCaptureOpen(false)}
+                    className="flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted-foreground transition-colors hover:bg-accent"
+                    aria-label={t('common.close')}
+                  >
+                    <X className="h-4 w-4" aria-hidden />
+                  </button>
+                </SheetTitle>
+              </SheetHeader>
+              <p className="pb-3 text-xs text-muted-foreground">{t('talk.attachHint')}</p>
+              <div className="max-h-[68vh] overflow-y-auto pb-2 scroll-slim">
+                <VoiceCapturePanel onDone={() => setCaptureOpen(false)} />
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          <div className="flex min-w-0 flex-1 items-end gap-1 rounded-3xl border bg-card p-1.5 focus-within:ring-2 focus-within:ring-primary/35">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -365,7 +421,7 @@ export function TalkView() {
           </div>
           <Button
             size="icon"
-            className="h-11 w-11 shrink-0 rounded-full shadow-md transition-transform hover:scale-105 active:scale-95"
+            className="h-11 w-11 shrink-0 rounded-full transition-transform hover:scale-105 active:scale-95"
             onClick={() => void send(input)}
             disabled={!input.trim() || sending}
             aria-label={t('talk.send')}

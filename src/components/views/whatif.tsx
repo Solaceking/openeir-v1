@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { useStats } from '@/lib/api-client'
 import { useT } from '@/lib/i18n'
 import type { WhatIfParams, WhatIfProjection } from '@/lib/health/whatif'
+import { PageHeader } from '@/components/page-header'
 
 interface ApiResult { projection: WhatIfProjection; narrative: string | null }
 
@@ -65,10 +66,7 @@ export function WhatIfView() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight"><FlaskConical className="h-6 w-6 text-teal-600" aria-hidden />{t('whatif.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('whatif.subtitle')} · {t('whatif.weeksNote')}</p>
-      </div>
+      <PageHeader view="whatif" subtitle={`${t('whatif.subtitle')} · ${t('whatif.weeksNote')}`} />
 
       <div className="grid gap-4 lg:grid-cols-5">
         {/* Levers */}
