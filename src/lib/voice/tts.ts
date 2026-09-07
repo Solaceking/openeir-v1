@@ -75,6 +75,14 @@ const BLOB_CACHE_MAX = 80
 
 let currentAudio: HTMLAudioElement | null = null
 
+/** Subscribers receive every new neural-voice <audio> element (e.g. an analyser
+ *  tap so the orb can shimmer with Eir's real amplitude). */
+const audioListeners = new Set<(a: HTMLAudioElement) => void>()
+export function onNeuralAudio(cb: (a: HTMLAudioElement) => void): () => void {
+  audioListeners.add(cb)
+  return () => { audioListeners.delete(cb) }
+}
+
 function evictOldestBlobs() {
   while (blobCache.size > BLOB_CACHE_MAX) {
     const oldest = blobCache.keys().next().value
@@ -122,6 +130,17 @@ async function edgeSpeak(
     currentAudio = audio
     audio.onended = () => { if (currentAudio === audio) currentAudio = null; resolve() }
     audio.onerror = () => { if (currentAudio === audio) currentAudio = null; reject(new Error('tts_playback')) }
+    // being paused mid-play (barge-in / stop) must settle the promise,
+    // otherwise sequential sentence playback would hang forever
+    audio.onpause = () => {
+      if (currentAudio === audio && !audio.ended) {
+        currentAudio = null
+        reject(new Error('tts_stopped'))
+      }
+    }
+    for (const cb of audioListeners) {
+      try { cb(audio) } catch { /* listener bugs never break playback */ }
+    }
     audio.play().catch(() => {
       if (currentAudio === audio) currentAudio = null
       reject(new Error('tts_autoplay'))
@@ -161,6 +180,31 @@ export function speak(text: string, opts: SpeakOptions = {}): void {
     return
   }
   browserSpeak(text, opts)
+}
+
+/** Fire-and-forget synthesis warm-up: fetch + cache the audio for `text`
+ *  WITHOUT playing it, so the next speak() starts instantly. */
+export function warmSpeak(text: string, opts: Pick<SpeakOptions, 'engine' | 'edgeVoice' | 'rate'> = {}): void {
+  if (!text.trim()) return
+  const ui = useUI.getState()
+  const engine = opts.engine ?? ui.voiceEngine ?? 'edge'
+  if (engine !== 'edge') return // browser engine has nothing to prefetch
+  const edgeVoice = opts.edgeVoice ?? ui.edgeVoice ?? DEFAULT_EDGE_VOICE
+  const rate = Math.min(1.6, Math.max(0.6, opts.rate ?? ui.voiceRate ?? 1))
+  const key = `${edgeVoice}|${rate}|${text}`
+  if (blobCache.has(key)) return
+  fetch(EDGE_TTS_ENDPOINT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice: edgeVoice, rate }),
+  }).then(async (res) => {
+    if (!res.ok) return
+    const blob = await res.blob()
+    if (!blob.type.startsWith('audio')) return
+    const url = URL.createObjectURL(blob)
+    blobCache.set(key, url)
+    evictOldestBlobs()
+  }).catch(() => { /* prefetch is best-effort */ })
 }
 
 export function stopSpeaking(): void {

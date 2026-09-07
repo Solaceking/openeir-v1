@@ -15,7 +15,7 @@ const createSchema = z.object({
   tags: z.array(z.string().max(30)).max(10).optional(),
   notes: z.string().max(500).nullable().optional(),
   takenAt: z.string().datetime().optional(),
-  source: z.enum(['manual', 'bluetooth', 'import', 'voice', 'ocr']).optional(),
+  source: z.enum(['manual', 'bluetooth', 'import', 'voice', 'ocr', 'chat']).optional(),
   /** machine captures may override a duplicate guard after user confirmation */
   force: z.boolean().optional(),
 })

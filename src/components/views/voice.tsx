@@ -113,6 +113,23 @@ export function VoiceView() {
         <p className="mt-0.5 text-sm text-muted-foreground">{t('voice.subtitle')}</p>
       </div>
 
+      {/* hands-free conversation CTA */}
+      <button
+        onClick={() => useUI.getState().setView('talk')}
+        className="group flex w-full items-center justify-between gap-3 rounded-2xl border border-teal-500/25 bg-gradient-to-r from-teal-500/10 via-teal-500/5 to-transparent px-4 py-3 text-left transition-all hover:-translate-y-0.5 hover:border-teal-500/45 hover:shadow-md"
+      >
+        <span className="flex items-center gap-3">
+          <span className="eir-orb-btn flex h-10 w-10 items-center justify-center rounded-full text-white shadow-md transition-transform group-hover:scale-105" aria-hidden>
+            <AudioLines className="h-5 w-5" />
+          </span>
+          <span>
+            <span className="block text-sm font-bold">{t('voice.talkCta')}</span>
+            <span className="block text-xs text-muted-foreground">{t('voice.talkCtaHint')}</span>
+          </span>
+        </span>
+        <span className="text-teal-600 transition-transform group-hover:translate-x-0.5 dark:text-teal-300" aria-hidden>→</span>
+      </button>
+
       {/* capability notice */}
       {(sttNotice || !v.ttsSupported) && (
         <div className="rounded-lg border border-amber-200 bg-amber-50/70 px-3 py-2 text-xs text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300">

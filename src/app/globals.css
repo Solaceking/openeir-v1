@@ -79,12 +79,13 @@
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
+  /* deep ink with a whisper of teal — “clinical night” */
+  --background: oklch(0.168 0.014 210);
+  --foreground: oklch(0.97 0.005 200);
+  --card: oklch(0.215 0.016 210);
+  --card-foreground: oklch(0.97 0.005 200);
+  --popover: oklch(0.215 0.016 210);
+  --popover-foreground: oklch(0.97 0.005 200);
   --primary: oklch(0.78 0.1 178);
   --primary-foreground: oklch(0.2 0.04 178);
   --secondary: oklch(0.269 0.02 178);
@@ -186,3 +187,63 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   50% { opacity: 1; transform: scale(1.12); }
 }
 .eir-live { animation: eir-pulse 2.2s ease-in-out infinite; }
+
+/* ---------- conversation design system ---------- */
+
+/* viewport reserved for shell chrome around the Talk thread */
+:root { --shell-chrome: 12.25rem; }
+@media (min-width: 768px) { :root { --shell-chrome: 9.75rem; } }
+
+/* Eir's side: a soft porcelain card; yours: the brand gradient */
+.eir-bubble-eir {
+  background: var(--card);
+  border: 1px solid color-mix(in oklab, var(--border) 80%, transparent);
+  color: var(--card-foreground);
+}
+.eir-bubble-user {
+  background: linear-gradient(135deg, oklch(0.55 0.11 178), oklch(0.47 0.1 195));
+  box-shadow: 0 1px 2px oklch(0.2 0.05 178 / 0.25);
+}
+.dark .eir-bubble-user {
+  background: linear-gradient(135deg, oklch(0.52 0.1 178), oklch(0.42 0.09 200));
+}
+
+/* the orb button — a tiny piece of the voice scene living in the chrome */
+.eir-orb-btn {
+  background: radial-gradient(120% 120% at 30% 25%, oklch(0.72 0.13 175), oklch(0.5 0.11 190) 60%, oklch(0.38 0.09 205));
+  box-shadow: 0 2px 10px oklch(0.55 0.11 178 / 0.45), inset 0 1px 1px oklch(1 0 0 / 0.35);
+}
+
+/* thread backdrop: barely-there radial depth */
+.eir-thread {
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--primary) 4%, transparent), transparent 60%),
+    color-mix(in oklab, var(--card) 45%, transparent);
+}
+
+/* typing dots + caret */
+@keyframes eir-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.45; }
+  30% { transform: translateY(-4px); opacity: 1; }
+}
+.eir-dot {
+  display: inline-block;
+  width: 6px; height: 6px; border-radius: 9999px;
+  background: currentColor;
+  animation: eir-bounce 1.2s ease-in-out infinite;
+}
+@keyframes eir-caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.eir-caret {
+  display: inline-block;
+  width: 2px; height: 1em; margin-left: 2px; vertical-align: text-bottom;
+  background: currentColor;
+  animation: eir-caret-blink 0.9s step-end infinite;
+}
+
+/* suggestion chips get a soft lift */
+.eir-chip { box-shadow: 0 1px 2px oklch(0 0 0 / 0.04); }
+.eir-chip:active { transform: scale(0.98); }
+
+@media (prefers-reduced-motion: reduce) {
+  .eir-live, .eir-dot, .eir-caret { animation: none; }
+}

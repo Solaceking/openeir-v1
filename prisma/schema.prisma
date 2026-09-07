@@ -195,6 +195,19 @@ model WhatIfScenario {
   createdAt      DateTime @default(now())
 }
 
+/// Conversation with Eir — one persistent thread (WhatsApp-style), full app context
+model ChatMessage {
+  id          String   @id @default(cuid())
+  role        String // user | assistant
+  content     String
+  /// structured extras: detected health intents, provider info, voice provenance
+  meta        String   @default("{}")
+  channel     String   @default("text") // text | voice
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+}
+
 /// Key/value store for reminders, language pack cache, etc.
 model AppSetting {
   key       String   @id

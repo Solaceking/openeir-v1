@@ -9,7 +9,7 @@ export { DEFAULT_EDGE_VOICE }
 export type { VoiceEngine }
 
 export type ViewKey =
-  | 'dashboard' | 'record' | 'voice' | 'readings' | 'medications'
+  | 'dashboard' | 'talk' | 'record' | 'voice' | 'readings' | 'medications'
   | 'trends' | 'story' | 'whatif' | 'reports' | 'settings'
 
 interface UIState {

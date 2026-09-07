@@ -5,6 +5,7 @@ import { useProfile } from '@/lib/api-client'
 import { AppShell } from '@/components/app-shell'
 import { SetupWizard } from '@/components/setup-wizard'
 import { DashboardView } from '@/components/views/dashboard'
+import { TalkView } from '@/components/views/talk'
 import { RecordView } from '@/components/views/record'
 import { VoiceView } from '@/components/views/voice'
 import { ReadingsView } from '@/components/views/readings'
@@ -21,6 +22,7 @@ function ViewRouter() {
   const view = useUI((s) => s.view)
   switch (view) {
     case 'dashboard': return <DashboardView />
+    case 'talk': return <TalkView />
     case 'record': return <RecordView />
     case 'voice': return <VoiceView />
     case 'readings': return <ReadingsView />

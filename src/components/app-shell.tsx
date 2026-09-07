@@ -3,10 +3,12 @@
 import { useEffect, useState } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import { useTheme } from 'next-themes'
+import { motion } from 'framer-motion'
 import { useUI, applyA11yClasses, type ViewKey } from '@/lib/store'
 import { useOfflineSync } from '@/lib/offline'
 import { useStats } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
@@ -16,23 +18,35 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, PenLine, ListOrdered, Pill, Activity, BookOpen,
   FlaskConical, FileText, Settings, Sun, Moon, Monitor, Wifi, WifiOff,
-  Accessibility, Sparkles, Mic,
+  Accessibility, Sparkles, Mic, MessagesSquare, Menu, ChevronRight,
 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { OpenEirLogo } from '@/components/logo'
 
-const NAV: { key: ViewKey; icon: typeof LayoutDashboard; i18nKey: string }[] = [
-  { key: 'dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard' },
-  { key: 'record', icon: PenLine, i18nKey: 'nav.record' },
-  { key: 'voice', icon: Mic, i18nKey: 'nav.voice' },
-  { key: 'readings', icon: ListOrdered, i18nKey: 'nav.readings' },
-  { key: 'medications', icon: Pill, i18nKey: 'nav.medications' },
-  { key: 'trends', icon: Activity, i18nKey: 'nav.trends' },
-  { key: 'story', icon: BookOpen, i18nKey: 'nav.story' },
-  { key: 'whatif', icon: FlaskConical, i18nKey: 'nav.whatif' },
-  { key: 'reports', icon: FileText, i18nKey: 'nav.reports' },
-  { key: 'settings', icon: Settings, i18nKey: 'nav.settings' },
+const ICONS: Record<ViewKey, typeof LayoutDashboard> = {
+  dashboard: LayoutDashboard,
+  talk: MessagesSquare,
+  record: PenLine,
+  voice: Mic,
+  readings: ListOrdered,
+  medications: Pill,
+  trends: Activity,
+  story: BookOpen,
+  whatif: FlaskConical,
+  reports: FileText,
+  settings: Settings,
+}
+
+/** Desktop sidebar groups */
+const GROUPS: { label: string; keys: ViewKey[] }[] = [
+  { label: 'Care', keys: ['dashboard', 'talk', 'record', 'voice', 'readings', 'medications'] },
+  { label: 'Insight', keys: ['trends', 'story', 'whatif', 'reports'] },
+  { label: 'System', keys: ['settings'] },
 ]
+
+/** Mobile bottom bar: the four essentials + More */
+const MOBILE_PRIMARY: ViewKey[] = ['dashboard', 'talk', 'record', 'medications']
+const MOBILE_MORE: ViewKey[] = ['voice', 'readings', 'trends', 'story', 'whatif', 'reports', 'settings']
 
 export function useRealtimeInsights(onNew: (payload: { title: string; body: string; severity: string; origin: string }) => void) {
   const [connected, setConnected] = useState(false)
@@ -60,8 +74,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { t } = useT()
   const stats = useStats()
   useOfflineSync()
+  const [moreOpen, setMoreOpen] = useState(false)
 
-  // connectivity tracking
   useEffect(() => {
     const upd = () => setOnline(navigator.onLine)
     upd()
@@ -70,7 +84,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return () => { window.removeEventListener('online', upd); window.removeEventListener('offline', upd) }
   }, [setOnline])
 
-  // a11y classes
   useEffect(() => { applyA11yClasses(largeText, highContrast) }, [largeText, highContrast])
 
   const connected = useRealtimeInsights((p) => {
@@ -78,31 +91,62 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     void stats.refetch()
   })
 
-  const navItem = (item: (typeof NAV)[number], mobile = false) => {
-    const active = view === item.key
-    const Icon = item.icon
-    if (mobile) {
-      return (
-        <button
-          key={item.key}
-          onClick={() => setView(item.key)}
-          className={`flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 py-1.5 text-[10px] font-medium transition-colors ${active ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
-          aria-current={active ? 'page' : undefined}
-        >
-          <Icon className="h-5 w-5" aria-hidden />
-          <span className="truncate w-full text-center">{t(item.i18nKey)}</span>
-        </button>
-      )
-    }
+  const go = (k: ViewKey) => { setView(k); setMoreOpen(false) }
+
+  const label = (k: ViewKey) => t(`nav.${k}`)
+  const Icon = (k: ViewKey) => ICONS[k]
+
+  // ---- desktop sidebar item -------------------------------------------------
+  const sideItem = (k: ViewKey) => {
+    const active = view === k
+    const I = Icon(k)
     return (
       <button
-        key={item.key}
-        onClick={() => setView(item.key)}
-        className={`flex min-h-[44px] w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${active ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'}`}
+        key={k}
+        onClick={() => go(k)}
+        className={`group relative flex min-h-[40px] w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors ${
+          active ? 'text-primary' : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+        }`}
         aria-current={active ? 'page' : undefined}
       >
-        <Icon className="h-4.5 w-4.5 shrink-0" aria-hidden />
-        {t(item.i18nKey)}
+        {active && (
+          <motion.span
+            layoutId="eir-side-pill"
+            className="absolute inset-0 rounded-xl bg-primary/10 ring-1 ring-primary/15"
+            transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+          />
+        )}
+        <I className="relative h-4.5 w-4.5 shrink-0" aria-hidden />
+        <span className="relative">{label(k)}</span>
+      </button>
+    )
+  }
+
+  // ---- mobile bar item -------------------------------------------------------
+  const mobileItem = (k: ViewKey) => {
+    const active = view === k
+    const I = Icon(k)
+    const emphasized = k === 'talk'
+    return (
+      <button
+        key={k}
+        onClick={() => go(k)}
+        className="relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1"
+        aria-current={active ? 'page' : undefined}
+      >
+        {active && (
+          <motion.span
+            layoutId="eir-mobile-pill"
+            className="absolute inset-x-1 inset-y-0 rounded-2xl bg-primary/10 ring-1 ring-primary/15"
+            transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+          />
+        )}
+        <span className={`relative flex h-7 w-7 items-center justify-center rounded-full ${emphasized && !active ? 'eir-orb-btn text-white shadow-md' : ''}`}>
+          <I className={`h-5 w-5 ${active ? 'text-primary' : 'text-muted-foreground'}`} aria-hidden />
+        </span>
+        <span className={`relative w-full truncate text-center text-[10px] font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+          {label(k)}
+        </span>
       </button>
     )
   }
@@ -110,10 +154,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-background/85 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+      <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:px-6">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-black/5 dark:ring-white/10" aria-hidden>
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white shadow-sm ring-1 ring-black/5 dark:bg-white/10 dark:ring-white/10" aria-hidden>
               <OpenEirLogo className="h-6.5 w-6.5" />
             </div>
             <div className="leading-tight">
@@ -122,7 +166,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </div>
           </div>
           <div className="flex items-center gap-1.5">
-            {/* realtime + connectivity */}
             <span
               className={`hidden items-center gap-1.5 rounded-full border px-2.5 py-1 text-[10px] font-medium sm:inline-flex ${connected ? 'border-teal-200 bg-teal-50 text-teal-700 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-300' : 'border-border text-muted-foreground'}`}
               title={connected ? 'Live ambient intelligence connected' : 'Realtime service offline — insights still delivered on refresh'}
@@ -135,7 +178,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <WifiOff className="h-3 w-3" aria-hidden /> {t('common.offline')}
               </Badge>
             )}
-            {/* a11y menu */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="Accessibility options">
@@ -175,22 +217,77 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       <div className="mx-auto flex w-full max-w-6xl flex-1 gap-6 px-3 py-4 sm:px-6">
         {/* Desktop sidebar */}
-        <nav className="sticky top-[72px] hidden h-fit w-52 shrink-0 flex-col gap-1 rounded-xl border bg-card p-2 md:flex" aria-label="Main navigation">
-          {NAV.map((n) => navItem(n))}
+        <nav className="sticky top-[72px] hidden h-fit w-52 shrink-0 flex-col gap-1 rounded-2xl border bg-card/60 p-2 backdrop-blur md:flex" aria-label="Main navigation">
+          {GROUPS.map((g) => (
+            <div key={g.label} className="flex flex-col gap-0.5">
+              <div className="px-3 pb-1 pt-2 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">{g.label}</div>
+              {g.keys.map(sideItem)}
+            </div>
+          ))}
         </nav>
         {/* Main content */}
-        <main className="min-w-0 flex-1 pb-20 md:pb-4">{children}</main>
+        <main className="min-w-0 flex-1 pb-24 md:pb-4">{children}</main>
       </div>
 
-      {/* Mobile bottom nav */}
+      {/* Mobile bottom nav — 4 essentials + More */}
       <nav
-        className="pb-safe fixed inset-x-0 bottom-0 z-40 flex border-t bg-background/95 backdrop-blur md:hidden"
+        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/90 px-1 pt-1 backdrop-blur-xl md:hidden"
         aria-label="Mobile navigation"
       >
-        {NAV.filter((n) => n.key !== 'reports' && n.key !== 'whatif').map((n) => navItem(n, true))}
+        <div className="mx-auto flex max-w-md items-stretch gap-0.5">
+          {MOBILE_PRIMARY.map(mobileItem)}
+          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
+            <SheetTrigger asChild>
+              <button
+                className={`relative flex min-h-[52px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 ${MOBILE_MORE.includes(view) ? 'text-primary' : 'text-muted-foreground'}`}
+                aria-label={t('nav.more')}
+                aria-expanded={moreOpen}
+              >
+                {MOBILE_MORE.includes(view) && (
+                  <motion.span
+                    layoutId="eir-mobile-pill"
+                    className="absolute inset-x-1 inset-y-0 rounded-2xl bg-primary/10 ring-1 ring-primary/15"
+                    transition={{ type: 'spring', stiffness: 480, damping: 36 }}
+                  />
+                )}
+                <span className="relative flex h-7 w-7 items-center justify-center">
+                  <Menu className={`h-5 w-5 ${MOBILE_MORE.includes(view) ? 'text-primary' : ''}`} aria-hidden />
+                </span>
+                <span className={`relative text-[10px] font-semibold ${MOBILE_MORE.includes(view) ? 'text-primary' : ''}`}>{t('nav.more')}</span>
+              </button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-safe pt-2">
+              <SheetHeader className="sr-only">
+                <SheetTitle>{t('nav.more')}</SheetTitle>
+              </SheetHeader>
+              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted" aria-hidden />
+              <div className="grid grid-cols-2 gap-1.5 pb-2">
+                {MOBILE_MORE.map((k) => {
+                  const I = Icon(k)
+                  const active = view === k
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => go(k)}
+                      className={`flex min-h-[52px] items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                        active ? 'border-primary/30 bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-accent'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <I className="h-4.5 w-4.5" aria-hidden />
+                        {label(k)}
+                      </span>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50" aria-hidden />
+                    </button>
+                  )
+                })}
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
       </nav>
 
-      <footer className="mt-auto border-t bg-muted/30">
+      <footer className="mt-auto hidden border-t bg-muted/30 md:block">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-2 px-4 py-3 text-[11px] text-muted-foreground sm:px-6">
           <span>OpenEir v1.0 — self-hosted & private. Not a medical device; always confirm with your doctor.</span>
           <span className="inline-flex items-center gap-1"><Wifi className="h-3 w-3" aria-hidden />{online ? 'Connected' : 'Offline queue active'}</span>
