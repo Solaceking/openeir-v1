@@ -16,7 +16,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, PenLine, ListOrdered, Pill, Activity, BookOpen,
   FlaskConical, FileText, Settings, Sun, Moon, Monitor, Wifi, WifiOff,
-  Accessibility, Sparkles,
+  Accessibility, Sparkles, Mic,
 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { OpenEirLogo } from '@/components/logo'
@@ -24,6 +24,7 @@ import { OpenEirLogo } from '@/components/logo'
 const NAV: { key: ViewKey; icon: typeof LayoutDashboard; i18nKey: string }[] = [
   { key: 'dashboard', icon: LayoutDashboard, i18nKey: 'nav.dashboard' },
   { key: 'record', icon: PenLine, i18nKey: 'nav.record' },
+  { key: 'voice', icon: Mic, i18nKey: 'nav.voice' },
   { key: 'readings', icon: ListOrdered, i18nKey: 'nav.readings' },
   { key: 'medications', icon: Pill, i18nKey: 'nav.medications' },
   { key: 'trends', icon: Activity, i18nKey: 'nav.trends' },

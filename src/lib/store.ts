@@ -5,7 +5,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 
 export type ViewKey =
-  | 'dashboard' | 'record' | 'readings' | 'medications'
+  | 'dashboard' | 'record' | 'voice' | 'readings' | 'medications'
   | 'trends' | 'story' | 'whatif' | 'reports' | 'settings'
 
 interface UIState {
@@ -19,6 +19,10 @@ interface UIState {
   highContrast: boolean
   simpleMode: boolean
   setAppearance: (p: Partial<Pick<UIState, 'theme' | 'largeText' | 'highContrast' | 'simpleMode'>>) => void
+  // voice preferences (per-device: TTS voices live on the device)
+  voiceAutoSpeak: boolean
+  voiceRate: number
+  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate'>>) => void
 }
 
 export const useUI = create<UIState>()(
@@ -33,6 +37,9 @@ export const useUI = create<UIState>()(
       highContrast: false,
       simpleMode: false,
       setAppearance: (p) => set(p),
+      voiceAutoSpeak: true,
+      voiceRate: 1,
+      setVoicePrefs: (p) => set(p),
     }),
     { name: 'openeir-ui' },
   ),

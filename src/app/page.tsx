@@ -6,6 +6,7 @@ import { AppShell } from '@/components/app-shell'
 import { SetupWizard } from '@/components/setup-wizard'
 import { DashboardView } from '@/components/views/dashboard'
 import { RecordView } from '@/components/views/record'
+import { VoiceView } from '@/components/views/voice'
 import { ReadingsView } from '@/components/views/readings'
 import { MedicationsView } from '@/components/views/medications'
 import { TrendsView } from '@/components/views/trends'
@@ -21,6 +22,7 @@ function ViewRouter() {
   switch (view) {
     case 'dashboard': return <DashboardView />
     case 'record': return <RecordView />
+    case 'voice': return <VoiceView />
     case 'readings': return <ReadingsView />
     case 'medications': return <MedicationsView />
     case 'trends': return <TrendsView />
