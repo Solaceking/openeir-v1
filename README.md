@@ -10,6 +10,8 @@ Self-hosted AI medical assistant — a conversational companion you can *speak w
 
 `Apache-2.0` · `Next.js 16` · `React 19` · `SQLite` · `Docker` · `PWA`
 
+<a href="https://railway.com?referralCode=i3reF8"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="40"></a>&nbsp;&nbsp;<a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/Solaceking/openeir&refcode=63b912d60f9a"><img src="https://www.deploytodo.com/do-btn-blue.svg" alt="Deploy to DigitalOcean" height="40"></a>
+
 </div>
 
 ---
@@ -55,6 +57,17 @@ Community contributions decide what ships next — see [docs/ROADMAP.md](docs/RO
 
 ---
 
+## Quick start (one-click deploy)
+
+Let a platform do the work — deploy straight from this repository:
+
+<p align="center">
+<a href="https://railway.com?referralCode=i3reF8"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="44"></a>&nbsp;&nbsp;
+<a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/Solaceking/openeir&refcode=63b912d60f9a"><img src="https://www.deploytodo.com/do-btn-blue.svg" alt="Deploy to DigitalOcean" height="44"></a>
+</p>
+
+Both buttons walk you through a guided setup. Two things to give the app and it's home for life: a **persistent volume at `/app/db`** (Railway: *Volume*; DigitalOcean App Platform: *mount path*) and HTTPS — which both platforms terminate for you by default. The referral codes in these buttons support OpenEir's development at no extra cost to you. Full platform recipes (Railway, Render, Fly.io, Coolify, Umbrel, Synology, the Vercel caveat and more): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ## Quick start (local)
 
 ```bash
@@ -87,9 +100,7 @@ docker compose --profile core --profile ai up -d
 docker compose --profile core --profile ai --profile agent up -d
 ```
 
-All state lives in the `openeir-data` volume. Back that up — it *is* your health record.
-
-**One-click deploys** (Vercel, Railway, Coolify, Umbrel, Synology…) are documented in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — including the one thing every platform needs: a **persistent volume for `/app/db`**.
+All state lives in the `openeir-data` volume. Back that up — it *is* your health record. Platform-by-platform deployment and operations: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
@@ -209,6 +220,18 @@ OpenEir is an information assistant for people who already manage their health w
 ## Contributing
 
 We want this to be the best open-source AI medical assistant, which means we need your brain. Read [CONTRIBUTING.md](CONTRIBUTING.md) — language packs, device adapters, new health-domain modules and docs are deliberately designed as low-barrier first contributions.
+
+## Support OpenEir ☕
+
+OpenEir is built by **one person** — a solo developer who is, themselves, both a patient and a carer. This software was born at a kitchen table between appointments and medication schedules, because the assistant our family needed didn't exist: something that talks kindly, remembers what matters, and calls the right person when it counts. If you are caring for yourself and for someone you love, you already know the weight a tool like this lifts — you are why it exists.
+
+If OpenEir has made your days lighter, please consider buying the developer a coffee. It keeps the docs detailed, the roadmap honest, and the next features coming — offline voice, more device adapters, missed-check-in escalation, and the companion features still ahead. And if money is tight — carer budgets are real, we know — sharing OpenEir with a community, writing about your setup, or contributing a translation helps every bit as much.
+
+<p align="center">
+<a href="https://www.buymeacoffee.com/codedave"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="200"></a>
+</p>
+
+The deploy buttons above also carry referral codes — using them costs you nothing and supports the project. Thank you for being here. ❤️
 
 ## License
 

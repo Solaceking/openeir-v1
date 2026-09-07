@@ -56,6 +56,20 @@ OpenEir runs anywhere that gives a Node/Next.js container **plus a persistent di
 > 1. Mount persistent storage at the database path (`/app/db` in the image, `db/` on bare metal).
 > 2. Terminate HTTPS (platform edge or your proxy) — voice + push depend on it.
 
+### Instant-deploy buttons
+
+Deploy straight from this repository — both flows end in a guided setup where you attach the volume and pick the region:
+
+<p align="center">
+<a href="https://railway.com?referralCode=i3reF8"><img src="https://railway.com/button.svg" alt="Deploy on Railway" height="44"></a>&nbsp;&nbsp;
+<a href="https://cloud.digitalocean.com/apps/new?repo=https://github.com/Solaceking/openeir&refcode=63b912d60f9a"><img src="https://www.deploytodo.com/do-btn-blue.svg" alt="Deploy to DigitalOcean" height="44"></a>
+</p>
+
+- **Railway** — deploy from repo, then add a Volume mounted at `/app/db`. Start command: `node .next/standalone/server.js` (build: `npm run build` after `npm install && npm run db:push`).
+- **DigitalOcean App Platform** — the button pre-fills the repo; add a **component-level disk** at the database mount path and set the build/run commands as above.
+
+The referral codes in these buttons support OpenEir's development at no extra cost to you — a quiet way to fund the roadmap while you deploy.
+
 ### Ready-to-use recipes
 
 | Platform | Setup | Persistence |
@@ -69,7 +83,7 @@ OpenEir runs anywhere that gives a Node/Next.js container **plus a persistent di
 | **Synology / QNAP / TrueNAS** | Container Manager → import `docker-compose.yml` → map a shared folder to the db path | Host dir |
 | **Portainer / any Docker host** | Stack → paste the compose file → volume → reverse proxy for HTTPS | Docker volume |
 
-> 🚧 **This section is deploy-ready by design**: the upcoming official one-click templates (button-deploy manifests per platform) will slot in here — the app already satisfies both invariants. If you maintain a platform template, PR it into this table.
+> 🚧 **More platforms welcome**: Railway and DigitalOcean ship with one-click buttons today (above); the app already satisfies both invariants everywhere. If you maintain a platform template — Coolify blueprint, Umbrel/Runtipi app store entry, Portainer stack — PR it into this table and the README.
 
 ### Hosted database option
 

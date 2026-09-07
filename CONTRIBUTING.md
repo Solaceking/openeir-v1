@@ -54,3 +54,7 @@ We label `good first issue` generously — if it looks intimidating, ask, and we
 ## Code of conduct
 
 Be excellent to each other. Health topics can be personal and emotional — assume good faith, write kindly, remember many readers are patients first and developers second.
+
+## Supporting the project (no code required)
+
+OpenEir is a solo-developer project — built by someone who is both a patient and a carer. Code contributions are wonderful, but a **[coffee](https://www.buymeacoffee.com/codedave)**, a share, a translation, or deploying through the referral buttons in the README all fund and fuel the roadmap just as directly. If OpenEir lightened your caring journey, tell someone about it — that's how health software finds the people who need it.
