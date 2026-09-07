@@ -30,7 +30,9 @@ interface UIState {
   voiceRate: number
   voiceEngine: VoiceEngine
   edgeVoice: string
-  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate' | 'voiceEngine' | 'edgeVoice'>>) => void
+  /** Which ear transcribes the user: 'auto' (webspeech→server fallback) | 'webspeech' (never leaves device) | 'server' (user's own STT stack) */
+  sttEar: 'auto' | 'webspeech' | 'server'
+  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate' | 'voiceEngine' | 'edgeVoice' | 'sttEar'>>) => void
 }
 
 export const useUI = create<UIState>()(
@@ -53,6 +55,7 @@ export const useUI = create<UIState>()(
       voiceRate: 1,
       voiceEngine: 'edge',
       edgeVoice: DEFAULT_EDGE_VOICE,
+      sttEar: 'auto',
       setVoicePrefs: (p) => set(p),
     }),
     {

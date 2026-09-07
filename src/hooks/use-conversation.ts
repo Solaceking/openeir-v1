@@ -30,6 +30,7 @@ import {
   speak, stopSpeaking, warmSpeak, onNeuralAudio,
 } from '@/lib/voice/tts'
 import { speechRecognitionSupported } from '@/lib/voice/stt'
+import { useUI } from '@/lib/store'
 import type { OrbState } from '@/lib/voice/orb-engine'
 
 export type ConversationState = 'off' | 'idle' | 'listening' | 'thinking' | 'speaking'
@@ -376,9 +377,25 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
 
   // ---- continuous recognition ---------------------------------------------
   const startRecognition = useCallback(() => {
-    if (!speechRecognitionSupported()) {
+    // User's ear preference (Settings → Voice & audio): 'webspeech' keeps
+    // audio on-device (never sent anywhere); 'server' skips the browser
+    // engine entirely; 'auto' = webspeech first, server ear on failure.
+    const preferredEar = useUI.getState().sttEar
+    if (preferredEar === 'server') {
+      if (mediaRecorderSupported() && streamRef.current && !listenDisabledRef.current) {
+        softEar('Server ear selected — your own speech stack is transcribing.')
+        return
+      }
+      setCanListen(false)
+      return
+    }
+    if (preferredEar !== 'webspeech' && !speechRecognitionSupported()) {
       if (mediaRecorderSupported() && streamRef.current) softEar('Browser speech service unavailable — using your server as the ear.')
       else setCanListen(false)
+      return
+    }
+    if (!speechRecognitionSupported()) {
+      setCanListen(false)
       return
     }
     const Ctor = (window as unknown as {
@@ -548,7 +565,7 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
     lastReplyRef.current = ''
     spokeAtRef.current = 0
     canListenRef.current = speechRecognitionSupported() || mediaRecorderSupported()
-    setEar('webspeech')
+    setEar(useUI.getState().sttEar === 'server' ? 'server' : 'webspeech')
     setNotice(null)
     setError(null)
     try {

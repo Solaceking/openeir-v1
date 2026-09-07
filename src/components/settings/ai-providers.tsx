@@ -400,6 +400,7 @@ function HarnessPanel() {
   })
 
   const attached = new Set((useProviders().data?.providers ?? []).filter((p) => p.adapter === 'cli').map((p) => p.model))
+  const [copiedId, setCopiedId] = useState<string | null>(null)
 
   return (
     <Card>
@@ -458,6 +459,17 @@ function HarnessPanel() {
             <div className="mt-1.5 font-mono text-[11px] text-muted-foreground">
               {cli.found ? `login: ${cli.login}` : `install: ${cli.installHint}`}
             </div>
+            {!cli.found && (
+              <Button size="sm" variant="ghost" className="mt-1 h-6 gap-1 px-2 font-mono text-[10.5px]"
+                onClick={() => {
+                  void navigator.clipboard.writeText(cli.installHint)
+                  setCopiedId(cli.id)
+                  setTimeout(() => setCopiedId(null), 1500)
+                }}>
+                {copiedId === cli.id ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
+                {copiedId === cli.id ? 'Copied — paste in your terminal' : 'Copy install command'}
+              </Button>
+            )}
           </div>
         ))}
         {q.data && (
