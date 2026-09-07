@@ -32,11 +32,11 @@ export const PROVIDER_PRESETS: ProviderPreset[] = [
   {
     id: 'builtin',
     label: 'OpenEir Built-in',
-    tagline: 'Works instantly — no account, no key',
+    tagline: 'GLM gateway — no API bills, config lives on this machine',
     adapter: 'builtin_zai',
     baseUrl: null,
     kind: 'builtin',
-    note: 'OpenEir ships with its own gateway so every AI feature works out of the box. Swap to any provider below for more control.',
+    note: 'OpenEir\'s own gateway to the GLM family. Where a gateway config exists (.z-ai-config at the project root, in your home folder, or /etc — or ZAI_API_KEY + ZAI_BASE_URL env vars), every AI feature works out of the box with no provider account. Self-hosting without one? Add the config file, or connect any provider below.',
   },
   {
     id: 'openrouter',

@@ -253,5 +253,8 @@ export const en = {
     discarded: 'Discarded',
     stopDictation: 'Stop dictation',
     dictate: 'Dictate',
+    orType: '…or type to Eir',
+    openSettings: 'Connect an AI provider',
+    replySeen: 'Eir replied (text while audio is muted):',
   },
 } as const

@@ -78,6 +78,10 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [canListen, setCanListen] = useState(true)
+  // Eir's latest reply, shown as text in the overlay. Voice must NEVER be the
+  // only channel: if audio is blocked (autoplay policy, no device volume), the
+  // user still sees every word.
+  const [lastReply, setLastReply] = useState<string | null>(null)
 
   const stateRef = useRef<ConversationState>('off')
   const genRef = useRef(0)               // invalidates async loops on stop/interrupt
@@ -98,6 +102,7 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
   const rafRef = useRef(0)
   const interimRef = useRef('')
   const lastFinalRef = useRef('')
+  const lastReplyRef = useRef('')
   const onTurnRef = useRef(onTurn)
   onTurnRef.current = onTurn
 
@@ -179,10 +184,22 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
   const interruptRef = useRef(interrupt)
   interruptRef.current = interrupt
 
+  /** True when a final transcript looks like the recognizer hearing Eir's own
+   *  voice (echo on machines without acoustic echo cancellation). Cheap prefix
+   *  containment check — a real interruption says something NEW. */
+  const isEcho = useCallback((text: string): boolean => {
+    const t = text.toLowerCase().replace(/[^a-z0-9 ]/g, '').trim()
+    if (t.length < 6) return true
+    const reply = lastReplyRef.current.toLowerCase().replace(/[^a-z0-9 ]/g, ' ')
+    return reply.includes(t)
+  }, [])
+
   // ---- send a user turn and speak the reply -------------------------------
   const sendText = useCallback(async (text: string, channel: 'text' | 'voice') => {
     const clean = text.trim()
     if (!clean || !sessionRef.current) return
+    // echo of Eir's own voice (no AEC on some devices) must not become a turn
+    if (isEcho(clean)) { setInterim(''); interimRef.current = ''; return }
     const myGen = ++genRef.current
     setInterim('')
     interimRef.current = ''
@@ -215,7 +232,10 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
       if (myGen !== genRef.current) return
 
       setBoth('speaking')
+      setLastReply(reply)
+      lastReplyRef.current = reply
       const sentences = splitSentences(reply)
+      let failedSentences = 0
       for (let i = 0; i < sentences.length; i++) {
         if (myGen !== genRef.current || !sessionRef.current) return
         if (sentences[i + 1]) warmSpeak(sentences[i + 1])
@@ -228,8 +248,14 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
           if (err.message === 'tts_stopped') throw Object.assign(err, { interrupted: true })
           // a single failed sentence must not kill the loop — but it did not
           // play, so keep going to the next one
+          failedSentences++
         })
         if (myGen !== genRef.current) return
+      }
+      // BOTH engines failed for every sentence: audio is blocked on this device.
+      // The reply is already visible as text — say so instead of failing silently.
+      if (failedSentences >= sentences.length && reply) {
+        setError("Audio couldn't play on this device — Eir's reply is shown as text. (Check volume, or the browser's autoplay block.)")
       }
       if (myGen === genRef.current && sessionRef.current) setBoth(listenDisabledRef.current ? 'idle' : 'listening')
     } catch (err) {
@@ -239,7 +265,7 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
     } finally {
       if (abortRef.current === ctrl) abortRef.current = null
     }
-  }, [setBoth])
+  }, [isEcho, setBoth])
 
   // ---- continuous recognition ---------------------------------------------
   const startRecognition = useCallback(() => {
@@ -358,6 +384,7 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
     interim,
     error,
     canListen,
+    lastReply,
     levelRef,
     ampRef,
     start,

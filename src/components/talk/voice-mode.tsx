@@ -7,11 +7,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { X, MicOff, AlertTriangle, SendHorizontal } from 'lucide-react'
+import { X, MicOff, AlertTriangle, SendHorizontal, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { OrbCanvas } from '@/components/talk/orb-canvas'
 import { useConversation, type ConversationTurn } from '@/hooks/use-conversation'
 import { useT } from '@/lib/i18n'
+import { useUI } from '@/lib/store'
+import { speak } from '@/lib/voice/tts'
+
+let greetedThisSession = false
 
 export function VoiceMode({
   open,
@@ -22,7 +26,8 @@ export function VoiceMode({
   onClose: () => void
   onTurn: (turn: ConversationTurn) => void
 }) {
-  const { t } = useT()
+  const { t, lang } = useT()
+  const setView = useUI((s) => s.setView)
   const conv = useConversation(onTurn)
   const [typed, setTyped] = useState('')
   const startedRef = useRef(false)
@@ -37,13 +42,24 @@ export function VoiceMode({
   useEffect(() => {
     if (open && !startedRef.current) {
       startedRef.current = true
-      void convRef.current.start()
+      void convRef.current.start().then(() => {
+        // A deterministic hello so the user INSTANTLY hears that voice works —
+        // and if audio is blocked, the failure surfaces in the first second,
+        // not after they have already spoken into the void.
+        if (!greetedThisSession) {
+          greetedThisSession = true
+          const hello = lang.startsWith('de')
+            ? 'Ich höre zu — sag einfach weg.'
+            : "I'm listening — go ahead."
+          speak(hello, { lang })
+        }
+      })
     }
     if (!open && startedRef.current) {
       startedRef.current = false
       convRef.current.stop()
     }
-  }, [open])
+  }, [open, lang])
 
   // closing (or unmounting) the overlay always tears the session down
   useEffect(() => () => {
@@ -96,8 +112,20 @@ export function VoiceMode({
 
           <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-6 pb-10">
             {conv.error && (
-              <div className="flex max-w-sm items-center gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden /> {conv.error}
+              <div className="flex max-w-sm flex-col gap-2 rounded-xl border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+                <span className="flex items-center gap-2">
+                  <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden /> {conv.error}
+                </span>
+                {(conv.error.toLowerCase().includes('provider') || conv.error.toLowerCase().includes('setup')) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 gap-1.5 self-start border-amber-400/40 bg-transparent text-amber-100 hover:bg-amber-400/15 hover:text-white"
+                    onClick={() => { conv.stop(); onCloseRef.current(); setView('settings') }}
+                  >
+                    <Settings2 className="h-3.5 w-3.5" aria-hidden /> {t('talk.openSettings')}
+                  </Button>
+                )}
               </div>
             )}
             {!conv.canListen && (
@@ -120,7 +148,7 @@ export function VoiceMode({
               />
             </button>
 
-            <div className="flex min-h-[64px] flex-col items-center gap-1.5 text-center">
+            <div className="flex min-h-[64px] max-w-lg flex-col items-center gap-1.5 text-center">
               <AnimatePresence mode="wait">
                 <motion.p
                   key={caption}
@@ -136,40 +164,46 @@ export function VoiceMode({
               {conv.interim && (
                 <p className="max-w-md text-base leading-relaxed text-white/95">{conv.interim}</p>
               )}
-              {conv.state === 'speaking' && (
+              {/* Voice is never the only channel: every reply is also text. */}
+              {conv.lastReply && conv.state === 'speaking' && (
+                <div className="mt-1 max-h-36 w-full overflow-y-auto scroll-slim rounded-xl border border-white/10 bg-white/5 px-3.5 py-2.5 text-left">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-white/40">{t('talk.replySeen')}</p>
+                  <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed text-white/90">{conv.lastReply}</p>
+                </div>
+              )}
+              {conv.state === 'speaking' && !conv.lastReply && (
                 <p className="text-[11px] text-white/40">{t('talk.interruptHint')}</p>
               )}
             </div>
 
-            {/* typed fallback when this device cannot listen */}
-            {!conv.canListen && (
-              <form
-                className="mt-2 flex w-full max-w-md items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault()
-                  if (!typed.trim()) return
-                  conv.sendTyped(typed.trim())
-                  setTyped('')
-                }}
+            {/* typed fallback — always available: mic-less devices, blocked
+                permissions, previews inside iframes, or simply quiet rooms */}
+            <form
+              className="mt-2 flex w-full max-w-md items-center gap-2"
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (!typed.trim()) return
+                conv.sendTyped(typed.trim())
+                setTyped('')
+              }}
+            >
+              <input
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                placeholder={conv.canListen ? t('talk.orType') : t('talk.placeholder')}
+                aria-label={t('talk.placeholder')}
+                className="h-11 flex-1 rounded-full border border-white/15 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-teal-400/50 focus:ring-2 focus:ring-teal-400/25"
+              />
+              <Button
+                type="submit"
+                size="icon"
+                className="eir-orb-btn h-11 w-11 shrink-0 rounded-full border-0 text-white"
+                disabled={!typed.trim()}
+                aria-label={t('talk.send')}
               >
-                <input
-                  value={typed}
-                  onChange={(e) => setTyped(e.target.value)}
-                  placeholder={t('talk.placeholder')}
-                  aria-label={t('talk.placeholder')}
-                  className="h-11 flex-1 rounded-full border border-white/15 bg-white/5 px-4 text-sm text-white outline-none placeholder:text-white/35 focus:border-teal-400/50 focus:ring-2 focus:ring-teal-400/25"
-                />
-                <Button
-                  type="submit"
-                  size="icon"
-                  className="eir-orb-btn h-11 w-11 shrink-0 rounded-full border-0 text-white"
-                  disabled={!typed.trim()}
-                  aria-label={t('talk.send')}
-                >
-                  <SendHorizontal className="h-4.5 w-4.5" aria-hidden />
-                </Button>
-              </form>
-            )}
+                <SendHorizontal className="h-4.5 w-4.5" aria-hidden />
+              </Button>
+            </form>
           </div>
         </motion.div>
       )}

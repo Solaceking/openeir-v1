@@ -7,6 +7,7 @@ import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
 import { DEFAULT_BUILTIN_MODEL, DEFAULT_BUILTIN_VISION_MODEL, isVisionModelId } from '@/lib/ai/model-default'
 import { callCliAgent } from '@/lib/ai/harness'
+import { ensureBuiltinProvider, builtinGatewayStatus } from '@/lib/ai/builtin'
 
 export interface ChatImage { mediaType: string; dataBase64: string }
 
@@ -150,10 +151,20 @@ export async function completeChat(
   purpose: 'insight' | 'story' | 'whatif' | 'report' | 'chat' | 'ocr',
   messages: ChatMessage[],
 ): Promise<ChatResult> {
-  const rows: ProviderRow[] = await db.aiProviderConfig.findMany({
+  // First boot on a fresh clone: materialize the built-in provider row without
+  // requiring the demo-data seed script. Only when the chain is empty — a
+  // user who deliberately disabled everything gets their choice respected.
+  let rows: ProviderRow[] = await db.aiProviderConfig.findMany({
     where: { enabled: true },
     orderBy: [{ priority: 'asc' }, { isDefault: 'desc' }],
   })
+  if (rows.length === 0) {
+    await ensureBuiltinProvider()
+    rows = await db.aiProviderConfig.findMany({
+      where: { enabled: true },
+      orderBy: [{ priority: 'asc' }, { isDefault: 'desc' }],
+    })
+  }
   const attempted: string[] = []
   for (const row of rows) {
     const started = Date.now()
@@ -182,7 +193,12 @@ export async function completeChat(
       return { ok: true, text, providerLabel: row.label, model: row.model, latencyMs: latency, attempted }
     } catch (err) {
       const latency = Date.now() - started
-      const msg = err instanceof Error ? err.message : String(err)
+      let msg = err instanceof Error ? err.message : String(err)
+      // Translate the SDK's raw config error into guidance a self-hoster can act on.
+      if (msg.includes('Configuration file not found')) {
+        const st = await builtinGatewayStatus()
+        msg = `built-in gateway has no config on this machine — checked ${st.checkedPaths.join(', ')}. Create a .z-ai-config JSON file ({"baseUrl": "…", "apiKey": "…"}) at the project root, or set ZAI_API_KEY + ZAI_BASE_URL env vars, or connect any provider in Settings → AI`
+      }
       attempted.push(`${row.label}: ${msg}`)
       await db.aiUsage.create({
         data: { providerLabel: row.label, model: row.model, purpose, latencyMs: latency, ok: false },
@@ -195,6 +211,12 @@ export async function completeChat(
     }
   }
   return { ok: false, text: '', providerLabel: 'none', latencyMs: 0, attempted }
+}
+
+/** One-line readiness check for the Settings panel and first-run UX. */
+export async function builtinStatusSummary(): Promise<{ configured: boolean; source: string | null; checkedPaths: string[] }> {
+  const st = await builtinGatewayStatus()
+  return { configured: st.configured, source: st.source, checkedPaths: st.checkedPaths }
 }
 
 /** Strip likely-PII when privacy mode is on. */

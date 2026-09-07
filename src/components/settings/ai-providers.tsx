@@ -94,7 +94,7 @@ function isNew(released: string | null): boolean {
 }
 
 const KIND_BADGE: Record<string, { label: string; cls: string }> = {
-  builtin: { label: 'no setup', cls: 'border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-300' },
+  builtin: { label: 'gateway key', cls: 'border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-300' },
   'api-key': { label: 'API key', cls: '' },
   'keyless-local': { label: 'local · offline', cls: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' },
   harness: { label: 'subscription', cls: 'border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300' },
@@ -486,6 +486,21 @@ export function AiProvidersSection() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
+          {providers.data?.builtin && !providers.data.builtin.configured && (
+            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Built-in gateway is not configured on this machine</p>
+              <p className="mt-1 text-xs leading-relaxed text-amber-800/90 dark:text-amber-200/90">
+                The built-in AI talks to a GLM gateway whose key lives in a <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">.z-ai-config</code> JSON file ({'"'}baseUrl{'"'} + {'"'}apiKey{'"'}) at the project root, in your home directory, or at /etc/.z-ai-config — or set <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_API_KEY</code> + <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_BASE_URL</code> env vars and restart. No gateway? Connect any provider below — OpenRouter is one key for hundreds of models, and Ollama runs fully offline.
+              </p>
+            </div>
+          )}
+          {providers.data?.builtin?.configured && (
+            <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-3.5 py-2.5">
+              <p className="text-xs text-teal-800 dark:text-teal-200">
+                Built-in gateway ready — config from <code className="font-mono">{providers.data.builtin.source}</code>
+              </p>
+            </div>
+          )}
           {providers.isLoading && <p className="py-4 text-sm text-muted-foreground">Loading…</p>}
           {providers.data?.providers.map((p) => (
             <div key={p.id} className={`rounded-xl border p-3.5 ${p.enabled ? '' : 'opacity-55'}`}>

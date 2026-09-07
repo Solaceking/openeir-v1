@@ -58,3 +58,5 @@ next-env.d.ts
 scripts/test-*.png
 tool-results/
 .tts-cache/
+.z-ai-config
+scripts/*.png

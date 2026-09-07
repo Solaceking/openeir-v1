@@ -314,7 +314,7 @@ export function useDeleteReading() {
 export function useProviders() {
   return useQuery({
     queryKey: ['providers'],
-    queryFn: () => j<{ providers: { id: string; label: string; adapter: string; baseUrl: string | null; model: string | null; enabled: boolean; isDefault: boolean; priority: number; privacyMode: boolean; hasKey: boolean; lastStatus: string | null; lastLatencyMs: number | null }[]; usage: { providerLabel: string; purpose: string; latencyMs: number; ok: boolean; createdAt: string }[] }>('/api/ai/providers'),
+    queryFn: () => j<{ providers: { id: string; label: string; adapter: string; baseUrl: string | null; model: string | null; enabled: boolean; isDefault: boolean; priority: number; privacyMode: boolean; hasKey: boolean; lastStatus: string | null; lastLatencyMs: number | null }[]; usage: { providerLabel: string; purpose: string; latencyMs: number; ok: boolean; createdAt: string }[]; builtin: { configured: boolean; source: string | null; checkedPaths: string[] } }>('/api/ai/providers'),
   })
 }
 

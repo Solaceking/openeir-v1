@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
-import { SendHorizontal, Mic, MicOff, AudioLines, Eraser, RefreshCcw, Sparkles } from 'lucide-react'
+import { SendHorizontal, Mic, MicOff, AudioLines, Eraser, RefreshCcw, Sparkles, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
@@ -54,6 +54,7 @@ export function TalkView() {
   const [loaded, setLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
+  const [sendError, setSendError] = useState<string | null>(null)
   const [voiceOpen, setVoiceOpen] = useState(false)
   const [dictating, setDictating] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
@@ -132,6 +133,7 @@ export function TalkView() {
     const text = raw.trim()
     if (!text || sending) return
     lastFailedRef.current = null
+    setSendError(null)
     setInput('')
     const tmpId = `tmp-${Date.now()}`
     setMessages((prev) => [...prev, {
@@ -146,7 +148,10 @@ export function TalkView() {
         body: JSON.stringify({ text, channel }),
       })
       const json = await res.json().catch(() => null)
-      if (!res.ok) throw new Error(json?.error ?? 'no_provider')
+      if (!res.ok) {
+        setSendError(json?.error ?? 'Eir could not reach an AI provider.')
+        throw new Error(json?.error ?? 'no_provider')
+      }
       setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'sent' as const } : m)))
       setMessages((prev) => [...prev, {
         id: json.replyId as string,
@@ -297,6 +302,21 @@ export function TalkView() {
           </div>
         )}
       </div>
+
+      {/* actionable failure banner — never a silent dead end */}
+      {sendError && (
+        <div className="mt-3 flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3.5 py-2.5">
+          <p className="min-w-0 text-xs leading-relaxed text-amber-800 dark:text-amber-200">{sendError}</p>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-7 shrink-0 gap-1.5 border-amber-500/40 text-amber-800 hover:bg-amber-500/15 dark:text-amber-200"
+            onClick={() => setView('settings')}
+          >
+            <Settings2 className="h-3.5 w-3.5" aria-hidden /> {t('talk.openSettings')}
+          </Button>
+        </div>
+      )}
 
       {/* composer */}
       <div className="pt-3">

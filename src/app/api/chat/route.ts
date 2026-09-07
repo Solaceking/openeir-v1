@@ -13,7 +13,7 @@ import { db } from '@/lib/db'
 import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
 import { z } from 'zod'
 import { buildHealthContext, contextForPrompt } from '@/lib/ai/context'
-import { completeChat } from '@/lib/ai/providers'
+import { completeChat, builtinStatusSummary } from '@/lib/ai/providers'
 import { parseVoiceCommand } from '@/lib/voice/parser'
 import { readbackFor } from '@/lib/voice/types'
 import { parseSchedule } from '@/lib/health/meds'
@@ -115,14 +115,23 @@ async function detectAction(text: string): Promise<DetectedAction | null> {
   return null
 }
 
-function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null, memoriesBlock: string): string {
+function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null, memoriesBlock: string, channel: 'text' | 'voice'): string {
   const lines = [
     'You are Eir, the warm, precise AI health companion inside the user\'s self-hosted OpenEir app (a blood-pressure / glucose / medication companion).',
     'This is a live conversation, WhatsApp-style. Write like a caring, highly competent friend who happens to read clinical data: short paragraphs, plain text, NO markdown headings, NO bullet lists, NO emoji.',
     'Keep replies under 110 words unless the user explicitly asks for depth. Use their actual numbers when relevant. Ask at most one gentle follow-up question when it helps.',
     'You are NOT a doctor and never diagnose. For symptoms that may be urgent (chest pain, severe breathlessness, fainting, stroke signs), tell them plainly to seek emergency care now.',
     'You may gently encourage habits and adherence, celebrate streaks, and explain what their numbers mean in plain language. Never invent numbers you were not given.',
+    'You DO have a voice: in Talk\'s live mode the user speaks to you out loud and everything you say is read aloud with a neural voice, and you hear them through speech-to-text. If asked whether you can hear or speak: yes, honestly — and your voice is synthesized.',
   ]
+  if (channel === 'voice') {
+    lines.push(
+      'You are in a LIVE SPOKEN conversation right now: the user is talking to you out loud, and your words are read aloud sentence by sentence as they arrive.',
+      'The user\'s words arrive via speech recognition, so small transcription mistakes are normal — flow with them, and confirm any number before treating it as data.',
+      'Write for the EAR: short speakable sentences, plain everyday words, no markdown, no lists, no emoji, no parentheses or symbols that sound odd when read aloud. Keep it under 90 words.',
+      'The user may interrupt you mid-sentence; if cut off, stop gracefully and listen. Do not repeat yourself after an interruption.',
+    )
+  }
   if (memoriesBlock) {
     lines.push(
       `\nThings you remember about the user from previous conversations (use naturally when relevant — do not recite this list, and never claim to remember what is not here):\n${memoriesBlock}`,
@@ -167,7 +176,7 @@ export async function POST(req: Request) {
   const memories = await retrieveMemories(text)
 
   const messages = [
-    { role: 'system' as const, content: systemPrompt(ctx, detected, memoriesForPrompt(memories)) },
+    { role: 'system' as const, content: systemPrompt(ctx, detected, memoriesForPrompt(memories), channel) },
     ...history.map((m) => ({
       role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
       content: m.content,
@@ -178,7 +187,14 @@ export async function POST(req: Request) {
   if (!result.ok) {
     // remove the orphan user turn so the thread stays honest after a retry
     await db.chatMessage.delete({ where: { id: userMsg.id } }).catch(() => {})
-    return fail('No AI provider reachable. Check Settings → AI providers.', 502, { attempted: result.attempted })
+    let detail = result.attempted.length ? ` (${result.attempted[0].slice(0, 220)})` : ''
+    if (!result.attempted.length) {
+      const builtin = await builtinStatusSummary()
+      detail = builtin.configured
+        ? ' — no provider in the chain is enabled. Open Settings → AI.'
+        : ` — the built-in gateway has no config on this machine (checked ${builtin.checkedPaths.join(', ')}). Add a .z-ai-config file or connect a provider in Settings → AI.`
+    }
+    return fail(`Eir couldn't reach any AI provider yet${detail}`, 502, { attempted: result.attempted })
   }
 
   const reply = result.text.trim()

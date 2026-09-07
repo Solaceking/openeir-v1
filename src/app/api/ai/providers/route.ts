@@ -3,6 +3,8 @@ import { db } from '@/lib/db'
 import { ok, fail, parseBody } from '@/lib/api-utils'
 import { z } from 'zod'
 import { encryptSecret } from '@/lib/crypto'
+import { builtinStatusSummary } from '@/lib/ai/providers'
+import { ensureBuiltinProvider } from '@/lib/ai/builtin'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,6 +38,8 @@ const listSchema = z.object({
 })
 
 export async function GET() {
+  // Fresh clone: make sure the built-in row exists before listing.
+  await ensureBuiltinProvider()
   const rows = await db.aiProviderConfig.findMany({ orderBy: [{ priority: 'asc' }, { isDefault: 'desc' }] })
   const providers: (z.infer<typeof listSchema>)[] = rows.map((r) => ({
     id: r.id, label: r.label, adapter: r.adapter, baseUrl: r.baseUrl, model: r.model,
@@ -44,7 +48,7 @@ export async function GET() {
     lastStatus: r.lastStatus, lastLatencyMs: r.lastLatencyMs,
   }))
   const usage = await db.aiUsage.findMany({ orderBy: { createdAt: 'desc' }, take: 40 })
-  return ok({ providers, usage })
+  return ok({ providers, usage, builtin: await builtinStatusSummary() })
 }
 
 export async function POST(req: Request) {

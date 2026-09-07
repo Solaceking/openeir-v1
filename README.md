@@ -93,7 +93,19 @@ All state lives in the `openeir-data` volume. Back that up — it *is* your heal
 
 ## AI: bring any model, or use the built-in one
 
-OpenEir ships with a **built-in provider** (GLM 5.3 Flash by default — free, zero config) that starts working the moment you install. It is **not locked to one model**: open Settings → **AI providers** → ✏️ edit the built-in provider and set *any* model id the gateway supports.
+OpenEir ships with a **built-in provider** (GLM 5.3 Flash by default). It is **not locked to one model**: open Settings → **AI providers** → ✏️ edit the built-in provider and set *any* model id the gateway supports.
+
+**Where the built-in AI actually comes from:** the built-in provider talks to a GLM gateway through `z-ai-web-dev-sdk`. The SDK finds its gateway credentials in a `.z-ai-config` JSON file (`{"baseUrl": "…", "apiKey": "…"}`), scanned in this order:
+
+1. `./.z-ai-config` — project root
+2. `~/.z-ai-config` — your home directory
+3. `/etc/.z-ai-config` — provisioned automatically inside managed environments
+
+On a self-hosted clone none of those exist yet — that's expected. Either:
+
+- add a `.z-ai-config` file with your gateway `baseUrl` + `apiKey`, **or**
+- set `ZAI_API_KEY` and `ZAI_BASE_URL` env vars (OpenEir bootstraps the config file from them at first use), **or**
+- skip the built-in provider entirely and connect any provider below — Settings → AI shows exactly which config source (if any) the gateway found.
 
 Prefer your own stack? Add providers to the **fallback chain** — lowest priority number answers first:
 
@@ -101,6 +113,10 @@ Prefer your own stack? Add providers to the **fallback chain** — lowest priori
 - **Cloud**: OpenAI, Anthropic, Mistral, DeepSeek, GLM, OpenRouter, LiteLLM — any OpenAI-compatible endpoint
 
 Keys are AES-256-GCM encrypted at rest; every call is measured (latency, success) and shown in Settings. Privacy mode strips PII before anything leaves the box. AI autonomy is a dial — *off / gentle / proactive*. If the built-in provider is unreachable, the chain simply moves to the next provider.
+
+### Talking to Eir out loud (Talk → live voice)
+
+Voice runs entirely on open web APIs plus your own server: **speech-to-text** is the browser's Web Speech API (Chrome, Edge and Safari; Firefox users get the typed composer with spoken replies), **text-to-speech** is server-side Edge neural voices synthesized inside your OpenEir instance — no keys, no cloud account, cached on disk. Eir always shows her replies as text too, so a muted device never silences the conversation. Microphone permission is required for listening (localhost and HTTPS only), and Eir greets you the moment live mode opens so you know audio works before you start talking.
 
 ## Feature tour
 
