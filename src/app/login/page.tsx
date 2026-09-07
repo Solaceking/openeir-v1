@@ -51,11 +51,8 @@ function LoginForm() {
       <div className="pointer-events-none fixed inset-x-6 inset-y-5 rounded-2xl border border-border/60 sm:inset-x-10 sm:inset-y-7" aria-hidden />
 
       <div className="flex w-full max-w-sm flex-col items-center">
-        <div className="relative">
-          <div className="h-24 w-24 overflow-hidden rounded-full border border-primary/25 bg-card">
-            <Image src="/mascot/eir-256.png" alt="Eir" width={96} height={96} priority className="h-full w-full object-cover" />
-          </div>
-          <span className="absolute inset-0 rounded-full ring-1 ring-inset ring-primary/10" aria-hidden />
+        <div className="eir-breathe h-24 w-24 overflow-hidden rounded-full">
+          <Image src="/mascot/eir-round-256.png" alt="Eir" width={96} height={96} priority className="h-full w-full object-cover" />
         </div>
         <h1 className="font-display mt-5 text-3xl font-medium tracking-tight">OpenEir</h1>
         <p className="font-display mt-0.5 text-sm italic text-muted-foreground">{t('app.tagline')}</p>

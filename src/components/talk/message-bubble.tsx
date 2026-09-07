@@ -45,11 +45,7 @@ export const MessageBubble = memo(function MessageBubble({ m }: { m: ChatBubbleM
       transition={{ type: 'spring', stiffness: 480, damping: 34, mass: 0.7 }}
       className={`group flex w-full gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
     >
-      {!isUser && (
-        <div className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-card" aria-hidden>
-          <OpenEirLogo className="h-5 w-5" />
-        </div>
-      )}
+      {!isUser && <OpenEirLogo className="eir-breathe mt-1 h-8 w-8" />}
       <div className={`max-w-[85%] sm:max-w-[75%] ${isUser ? 'items-end' : 'items-start'} flex flex-col`}>
         <div
           className={

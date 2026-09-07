@@ -137,9 +137,9 @@ export function VoiceMode({
           <div className="relative z-10 flex flex-1 flex-col items-center justify-center gap-3 px-6 pb-6">
             {/* Eir — the mascot presides over the smoke */}
             <div className="relative shrink-0" aria-hidden>
-              <div className="h-16 w-16 overflow-hidden rounded-full border-2 border-[#fdfbf5]/25 shadow-none sm:h-20 sm:w-20">
+              <div className="eir-breathe h-16 w-16 overflow-hidden rounded-full border-2 border-[#fdfbf5]/25 shadow-none sm:h-20 sm:w-20">
                 <Image
-                  src="/mascot/eir-256.png"
+                  src="/mascot/eir-round-256.png"
                   alt=""
                   width={80}
                   height={80}

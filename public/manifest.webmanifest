@@ -4,7 +4,7 @@
   "description": "Self-hosted AI medical assistant with an open agent harness. Private by design.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f0fdfa",
+  "background_color": "#FDFBF5",
   "theme_color": "#0f766e",
   "orientation": "portrait-primary",
   "categories": ["health", "medical", "lifestyle"],

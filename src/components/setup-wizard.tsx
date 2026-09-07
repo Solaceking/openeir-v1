@@ -257,9 +257,7 @@ export function SetupWizard({ onDone }: { onDone: () => void }) {
               {/* 0 — welcome */}
               {step === 0 && (
                 <div className="py-3 text-center">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-black/5 dark:ring-white/10">
-                    <OpenEirLogo className="h-12 w-12" aria-hidden />
-                  </div>
+                  <OpenEirLogo className="eir-breathe mx-auto h-16 w-16" aria-hidden />
                   <h1 className="mt-4 text-2xl font-bold">Welcome to OpenEir</h1>
                   <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted-foreground">
                     A private, self-hosted companion for your health — with an ambient intelligence called{' '}

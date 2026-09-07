@@ -303,9 +303,7 @@ export function TalkView() {
         })}
         {sending && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-primary/20 bg-card" aria-hidden>
-              <OpenEirLogo className="h-5 w-5" />
-            </div>
+            <OpenEirLogo className="eir-breathe h-8 w-8" aria-hidden />
             <div className="eir-bubble-eir flex items-center gap-1.5 rounded-2xl rounded-bl-md px-4 py-3" aria-label={t('talk.thinking')}>
               {[0, 1, 2].map((i) => (
                 <span key={i} className="eir-dot" style={{ animationDelay: `${i * 160}ms` }} aria-hidden />

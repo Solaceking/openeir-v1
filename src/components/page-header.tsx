@@ -41,7 +41,7 @@ export function PageHeader({
               aria-hidden={!onDashboard}
               tabIndex={onDashboard ? -1 : 0}
               aria-label={onDashboard ? undefined : t('nav.group.home')}
-              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-secondary text-secondary-foreground"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-secondary text-secondary-foreground"
             >
               <Icon className="h-5 w-5" aria-hidden />
             </button>

@@ -308,7 +308,22 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
 .eir-splash-tag { animation: eir-splash-fade 0.7s ease-out 0.45s both; }
 .eir-splash-bar { animation: eir-splash-bar 1.4s ease-in-out 0.5s infinite; }
 
+/* living ring — a teal arc rolls around Eir, an echo drifts back, a warm
+   spark orbits the other way, and the portrait breathes. Flat strokes only. */
+@keyframes eir-ring-main { to { stroke-dashoffset: -358; } }
+@keyframes eir-ring-echo { to { stroke-dashoffset: 358; } }
+@keyframes eir-ring-orbit { to { transform: rotate(360deg); } }
+@keyframes eir-breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.045); }
+}
+.eir-ring-main { animation: eir-ring-main 7s linear infinite; }
+.eir-ring-echo { animation: eir-ring-echo 11s linear infinite; }
+.eir-ring-orbit { animation: eir-ring-orbit 6s linear infinite; transform-origin: 50% 50%; will-change: transform; }
+.eir-breathe { animation: eir-breathe 3.6s ease-in-out infinite; transform-origin: 50% 50%; }
+
 @media (prefers-reduced-motion: reduce) {
   .eir-live, .eir-dot, .eir-caret,
-  .eir-splash-logo, .eir-splash-word, .eir-splash-tag, .eir-splash-bar { animation: none; }
+  .eir-splash-logo, .eir-splash-word, .eir-splash-tag, .eir-splash-bar,
+  .eir-ring-main, .eir-ring-echo, .eir-ring-orbit, .eir-breathe { animation: none; }
 }
