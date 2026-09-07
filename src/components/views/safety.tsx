@@ -327,6 +327,29 @@ export function SafetyView() {
         </AnimatePresence>
       </div>
 
+      {/* ---- daily check-in ---- */}
+      <div className="flex items-center justify-between rounded-2xl border border-emerald-500/25 bg-emerald-500/5 p-4">
+        <div>
+          <p className="text-sm font-semibold">Daily check-in</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">Tells your companion you&apos;re OK without them having to ask.</p>
+        </div>
+        <Button
+          size="sm"
+          className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
+          onClick={async () => {
+            try {
+              const res = await fetch('/api/companion/checkin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+              if (!res.ok) throw new Error()
+              toast.success('Checked in — your companion can see you\'re OK')
+            } catch {
+              toast.error('Check-in failed — try again')
+            }
+          }}
+        >
+          <CheckCircle2 className="h-4 w-4" aria-hidden /> I&apos;m OK
+        </Button>
+      </div>
+
       {/* ---- GP card ---- */}
       {gp?.name && (
         <div className="rounded-2xl border p-4">

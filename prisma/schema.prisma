@@ -247,6 +247,8 @@ model CompanionLink {
   contact      String? // phone or email for the invite
   /// one-time pairing token (hashed at rest); single-use, expires
   tokenHash    String    @unique
+  /// long-lived viewing token (hashed) — issued at activation, kept on the companion's device
+  viewerHash   String?   @unique
   status       String    @default("invited") // invited | active | revoked
   /// JSON string[] — scopes granted: status | meds | vitals | location | live_audio
   scopes       String    @default("[\"status\",\"meds\",\"vitals\"]")

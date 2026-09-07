@@ -13,6 +13,12 @@ const parse = <T,>(s: string | null | undefined, fb: T): T => { try { return s ?
 
 export async function GET() {
   const profileRow = (await db.profile.findFirst()) ?? (await db.profile.create({ data: {} }))
+  // passive presence heartbeat — lets companions see "app active X min ago"
+  void db.appSetting.upsert({
+    where: { key: 'last_app_open' },
+    update: { value: new Date().toISOString() },
+    create: { key: 'last_app_open', value: new Date().toISOString() },
+  }).catch(() => {})
   const [bpRows, glRows, meds, logs, lifeRows] = await Promise.all([
     db.bpReading.findMany({ orderBy: { takenAt: 'desc' }, take: 400 }),
     db.glucoseReading.findMany({ orderBy: { takenAt: 'desc' }, take: 400 }),
