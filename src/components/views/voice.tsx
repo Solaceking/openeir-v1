@@ -5,9 +5,9 @@
 // and unsupported browsers degrade to the same parser via the text box —
 // identical flow, zero second-class paths.
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  Mic, Square, AudioLines, Loader2, Copy, Check,
+  Mic, Square, AudioLines, Loader2, Copy, Check, Volume2,
   HeartPulse, Droplets, Pill, StickyNote, CircleHelp,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,11 +20,12 @@ import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Textarea } from '@/components/ui/textarea'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { useVoice, matchMedication } from '@/hooks/use-voice'
 import { useMedications } from '@/lib/api-client'
-import { useUI } from '@/lib/store'
+import { DEFAULT_EDGE_VOICE, useUI } from '@/lib/store'
+import { speak, stopSpeaking } from '@/lib/voice/tts'
 import { useT } from '@/lib/i18n'
 import { VOICE_CONFIDENCE_THRESHOLD, type VoiceIntentFields } from '@/lib/voice/types'
 
@@ -37,6 +38,10 @@ const EXAMPLES = [
   'I skipped my lisinopril this morning',
 ]
 
+const PREVIEW_TEXT = 'Blood pressure one twenty-two over seventy-eight, pulse sixty-four. Everything looks steady today.'
+
+interface CatalogVoice { id: string; label: string; gender: 'Female' | 'Male'; accent: string; note?: string }
+
 const KIND_ICON = {
   bp: HeartPulse, glucose: Droplets, med_taken: Pill, med_skipped: Pill, note: StickyNote, unknown: CircleHelp,
 } as const
@@ -44,9 +49,36 @@ const KIND_ICON = {
 export function VoiceView() {
   const { t } = useT()
   const medsQ = useMedications()
-  const { voiceAutoSpeak, voiceRate, setVoicePrefs } = useUI()
+  const { voiceAutoSpeak, voiceRate, voiceEngine, edgeVoice, setVoicePrefs } = useUI()
   const v = useVoice()
   const [typed, setTyped] = useState('')
+  const [voices, setVoices] = useState<CatalogVoice[]>([])
+  const [previewing, setPreviewing] = useState(false)
+  const previewRef = useRef(false)
+
+  useEffect(() => {
+    let alive = true
+    fetch('/api/voice/tts')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { voices?: CatalogVoice[] } | null) => { if (alive && d?.voices) setVoices(d.voices) })
+      .catch(() => { /* picker stays empty; engine falls back to browser voice */ })
+    return () => { alive = false; stopSpeaking() }
+  }, [])
+
+  const accents = [...new Set(voices.map((x) => x.accent))]
+
+  const preview = () => {
+    if (previewRef.current) { stopSpeaking(); previewRef.current = false; setPreviewing(false); return }
+    previewRef.current = true
+    setPreviewing(true)
+    speak(PREVIEW_TEXT, {
+      engine: 'edge',
+      edgeVoice: edgeVoice ?? DEFAULT_EDGE_VOICE,
+      rate: voiceRate,
+      onEnd: () => { previewRef.current = false; setPreviewing(false) },
+      onError: () => { previewRef.current = false; setPreviewing(false) },
+    })
+  }
 
   const meds = medsQ.data?.medications ?? []
   const matchedMed = v.intent && (v.intent.fields.kind === 'med_taken' || v.intent.fields.kind === 'med_skipped')
@@ -297,6 +329,51 @@ export function VoiceView() {
             <Label htmlFor="v-autospeak" className="text-sm">{t('voice.autoSpeak')}</Label>
             <Switch id="v-autospeak" checked={voiceAutoSpeak} onCheckedChange={(c) => setVoicePrefs({ voiceAutoSpeak: c })} />
           </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="v-engine" className="text-sm">{t('voice.engine')}</Label>
+              <Select value={voiceEngine} onValueChange={(x) => setVoicePrefs({ voiceEngine: x as 'edge' })}>
+                <SelectTrigger id="v-engine" className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="edge">{t('voice.engineEdge')}</SelectItem>
+                  <SelectItem value="browser">{t('voice.engineBrowser')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                {voiceEngine === 'edge' ? t('voice.engineEdgeHint') : t('voice.engineBrowserHint')}
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="v-edgevoice" className="text-sm">{t('voice.voiceName')}</Label>
+              <Select
+                value={edgeVoice || DEFAULT_EDGE_VOICE}
+                onValueChange={(x) => setVoicePrefs({ edgeVoice: x })}
+                disabled={voiceEngine !== 'edge' || voices.length === 0}
+              >
+                <SelectTrigger id="v-edgevoice" className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {accents.map((accent) => (
+                    <SelectGroup key={accent}>
+                      <SelectLabel className="text-[10px] uppercase tracking-wide text-muted-foreground">{accent}</SelectLabel>
+                      {voices.filter((x) => x.accent === accent).map((x) => (
+                        <SelectItem key={x.id} value={x.id}>
+                          {x.label} · {x.gender}{x.note ? ` — ${x.note}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectGroup>
+                  ))}
+                </SelectContent>
+              </Select>
+              {voiceEngine === 'edge' && (
+                <Button variant="outline" size="sm" onClick={preview} className="mt-2 gap-1.5">
+                  {previewing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Volume2 className="h-3.5 w-3.5" aria-hidden />}
+                  {previewing ? t('voice.previewing') : t('voice.preview')}
+                </Button>
+              )}
+            </div>
+          </div>
+
           <div>
             <div className="flex items-center justify-between">
               <Label className="text-sm">{t('voice.rate')}</Label>

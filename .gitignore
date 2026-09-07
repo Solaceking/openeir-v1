@@ -57,3 +57,4 @@ next-env.d.ts
 *.traineddata
 scripts/test-*.png
 tool-results/
+.tts-cache/

@@ -3,6 +3,10 @@
 
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { DEFAULT_EDGE_VOICE, type VoiceEngine } from '@/lib/voice/edge-voice'
+
+export { DEFAULT_EDGE_VOICE }
+export type { VoiceEngine }
 
 export type ViewKey =
   | 'dashboard' | 'record' | 'voice' | 'readings' | 'medications'
@@ -22,7 +26,9 @@ interface UIState {
   // voice preferences (per-device: TTS voices live on the device)
   voiceAutoSpeak: boolean
   voiceRate: number
-  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate'>>) => void
+  voiceEngine: VoiceEngine
+  edgeVoice: string
+  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate' | 'voiceEngine' | 'edgeVoice'>>) => void
 }
 
 export const useUI = create<UIState>()(
@@ -39,6 +45,8 @@ export const useUI = create<UIState>()(
       setAppearance: (p) => set(p),
       voiceAutoSpeak: true,
       voiceRate: 1,
+      voiceEngine: 'edge',
+      edgeVoice: DEFAULT_EDGE_VOICE,
       setVoicePrefs: (p) => set(p),
     }),
     { name: 'openeir-ui' },

@@ -14,7 +14,7 @@ import { usePostReading, useLogMedication, useMedications } from '@/lib/api-clie
 import { parseVoiceCommand } from '@/lib/voice/parser'
 import { readbackFor, type VoiceIntent, type VoiceIntentFields } from '@/lib/voice/types'
 import { speechRecognitionSupported, sttBrowserFamily, startDictation } from '@/lib/voice/stt'
-import { speechSynthesisSupported, speak, stopSpeaking } from '@/lib/voice/tts'
+import { speak, stopSpeaking, ttsAvailable } from '@/lib/voice/tts'
 import { toast } from 'sonner'
 
 export type VoicePhase = 'idle' | 'listening' | 'parsed' | 'saving'
@@ -57,6 +57,7 @@ function snapToSchedule(heard: string | undefined, slots: string[]): { time: str
 export function useVoice() {
   const { t, lang } = useT()
   const { voiceAutoSpeak, voiceRate } = useUI()
+  const voiceEngine = useUI((s) => s.voiceEngine)
   const post = usePostReading()
   const logMed = useLogMedication()
   const medsQ = useMedications()
@@ -69,7 +70,8 @@ export function useVoice() {
   const stopRef = useRef<(() => void) | null>(null)
 
   const sttSupported = useMemo(() => speechRecognitionSupported(), [])
-  const ttsSupported = useMemo(() => speechSynthesisSupported(), [])
+  // Neural engine speaks server-side — even Firefox gets voice-outs now.
+  const ttsSupported = useMemo(() => ttsAvailable(voiceEngine), [voiceEngine])
   const family = useMemo(() => sttBrowserFamily(), [])
 
   const reset = useCallback(() => {
@@ -172,7 +174,7 @@ export function useVoice() {
           return
         }
         const slots = Array.isArray(med.scheduleTimes) ? med.scheduleTimes : []
-        const { time, snapped } = snapToSchedule(f.time, slots)
+        const { time, snapped } = snapToSchedule(f.time ?? undefined, slots)
         logMed.mutate({
           medicationId: med.id,
           date: todayIso(),
