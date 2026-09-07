@@ -27,6 +27,7 @@ import {
   Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from '@/components/ui/command'
 import { useProviders } from '@/lib/api-client'
+import { GatewayConfigInspector } from '@/components/settings/gateway-config-inspector'
 import { toast } from 'sonner'
 import { PROVIDER_PRESETS, presetById, type ProviderPreset } from '@/lib/ai/presets'
 
@@ -542,7 +543,7 @@ export function AiProvidersSection() {
             <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Built-in gateway is not configured on this machine</p>
               <p className="mt-1 text-xs leading-relaxed text-amber-800/90 dark:text-amber-200/90">
-                The built-in AI talks to a GLM gateway whose key lives in a <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">.z-ai-config</code> JSON file ({'"'}baseUrl{'"'} + {'"'}apiKey{'"'}) at the project root, in your home directory, or at /etc/.z-ai-config — or set <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_API_KEY</code> + <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_BASE_URL</code> env vars and restart. No gateway? Connect any provider below — OpenRouter is one key for hundreds of models, and Ollama runs fully offline.
+                The built-in AI talks to a GLM gateway whose key lives in a <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">.z-ai-config</code> JSON file ({'"'}baseUrl{'"'} + {'"'}apiKey{'"'}) at the project root, in your home directory, or at /etc/.z-ai-config — or set <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_API_KEY</code> + <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_BASE_URL</code> env vars and restart — the inspector below shows exactly which of these exist on this machine. No gateway? Connect any provider below — OpenRouter is one key for hundreds of models, and Ollama runs fully offline.
               </p>
             </div>
           )}
@@ -553,6 +554,7 @@ export function AiProvidersSection() {
               </p>
             </div>
           )}
+          <GatewayConfigInspector defaultOpen={!providers.data?.builtin?.configured} />
           {providers.isLoading && <p className="py-4 text-sm text-muted-foreground">Loading…</p>}
           {providers.data?.providers.map((p) => (
             <div key={p.id} className={`rounded-xl border p-3.5 ${p.enabled ? '' : 'opacity-55'}`}>
