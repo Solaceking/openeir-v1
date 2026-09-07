@@ -30,6 +30,9 @@ export interface Profile {
   bpSystolicTarget: number; bpDiastolicTarget: number
   glucoseTargetMin: number; glucoseTargetMax: number; glucoseUnit: string
   weightTargetKg: number | null; onboarded: boolean
+  gpName: string | null; gpOrg: string | null; gpAddress: string | null
+  gpPhone: string | null; gpWebsite: string | null; gpPlaceId: string | null
+  gpPlusCode: string | null; gpNotes: string | null
   prefs: Record<string, unknown>
 }
 

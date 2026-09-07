@@ -10,7 +10,7 @@ export type { VoiceEngine }
 
 export type ViewKey =
   | 'dashboard' | 'talk' | 'record' | 'voice' | 'readings' | 'medications'
-  | 'trends' | 'story' | 'whatif' | 'reports' | 'settings'
+  | 'safety' | 'trends' | 'story' | 'whatif' | 'reports' | 'settings'
 
 interface UIState {
   view: ViewKey

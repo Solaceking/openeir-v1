@@ -20,6 +20,15 @@ const profileSchema = z.object({
   glucoseUnit: z.enum(['mmol', 'mgdl']).optional(),
   weightTargetKg: z.number().min(30).max(300).nullable().optional(),
   onboarded: z.boolean().optional(),
+  // GP details (filled via map search in the wizard)
+  gpName: z.string().max(120).nullable().optional(),
+  gpOrg: z.string().max(160).nullable().optional(),
+  gpAddress: z.string().max(300).nullable().optional(),
+  gpPhone: z.string().max(40).nullable().optional(),
+  gpWebsite: z.string().max(200).nullable().optional(),
+  gpPlaceId: z.string().max(200).nullable().optional(),
+  gpPlusCode: z.string().max(20).nullable().optional(),
+  gpNotes: z.string().max(500).nullable().optional(),
   prefs: prefsSchema.optional(),
 })
 
@@ -52,6 +61,14 @@ export async function PUT(req: Request) {
     ...(data.glucoseUnit !== undefined ? { glucoseUnit: data.glucoseUnit } : {}),
     weightTargetKg: data.weightTargetKg ?? null,
     ...(data.onboarded !== undefined ? { onboarded: data.onboarded } : {}),
+    ...(data.gpName !== undefined ? { gpName: data.gpName } : {}),
+    ...(data.gpOrg !== undefined ? { gpOrg: data.gpOrg } : {}),
+    ...(data.gpAddress !== undefined ? { gpAddress: data.gpAddress } : {}),
+    ...(data.gpPhone !== undefined ? { gpPhone: data.gpPhone } : {}),
+    ...(data.gpWebsite !== undefined ? { gpWebsite: data.gpWebsite } : {}),
+    ...(data.gpPlaceId !== undefined ? { gpPlaceId: data.gpPlaceId } : {}),
+    ...(data.gpPlusCode !== undefined ? { gpPlusCode: data.gpPlusCode } : {}),
+    ...(data.gpNotes !== undefined ? { gpNotes: data.gpNotes } : {}),
     ...(data.prefs !== undefined ? { prefs: JSON.stringify(data.prefs) } : {}),
   }
   const profile = existing

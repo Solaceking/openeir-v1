@@ -12,6 +12,7 @@ export const en = {
     voice: 'Voice',
     readings: 'Readings',
     medications: 'Medications',
+    safety: 'Safety',
     trends: 'Trends',
     story: 'BP Story',
     whatif: 'What-If',

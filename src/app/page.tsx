@@ -10,6 +10,7 @@ import { RecordView } from '@/components/views/record'
 import { VoiceView } from '@/components/views/voice'
 import { ReadingsView } from '@/components/views/readings'
 import { MedicationsView } from '@/components/views/medications'
+import { SafetyView } from '@/components/views/safety'
 import { TrendsView } from '@/components/views/trends'
 import { StoryView } from '@/components/views/story'
 import { WhatIfView } from '@/components/views/whatif'
@@ -27,6 +28,7 @@ function ViewRouter() {
     case 'voice': return <VoiceView />
     case 'readings': return <ReadingsView />
     case 'medications': return <MedicationsView />
+    case 'safety': return <SafetyView />
     case 'trends': return <TrendsView />
     case 'story': return <StoryView />
     case 'whatif': return <WhatIfView />

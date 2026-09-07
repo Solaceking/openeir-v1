@@ -30,6 +30,15 @@ model Profile {
   glucoseUnit       String   @default("mmol") // mmol | mgdl
   weightTargetKg    Float?
   onboarded         Boolean  @default(false)
+  // General practitioner / primary care (filled via map search in the wizard)
+  gpName            String? // Dr. Jane Smith
+  gpOrg             String? // Riverside Family Practice
+  gpAddress         String?
+  gpPhone           String?
+  gpWebsite         String?
+  gpPlaceId         String? // Google Places id (or nominatim osm id) for provenance
+  gpPlusCode        String? // Open Location Code for dispatchers
+  gpNotes           String?
   // Appearance / a11y / language / ai autonomy / quiet hours (JSON)
   prefs             String   @default("{}")
   createdAt         DateTime @default(now())
@@ -213,4 +222,61 @@ model AppSetting {
   key       String   @id
   value     String
   updatedAt DateTime @updatedAt
+}
+
+/// Emergency contact with EVERY viable channel (SOS blasts all of them)
+model EmergencyContact {
+  id           String  @id @default(cuid())
+  name         String
+  relationship String  @default("family") // family | friend | carer | neighbour | other
+  isPrimary    Boolean @default(false)
+  /// JSON [{ type: 'phone'|'whatsapp'|'email'|'signal'|'other', value, label? }]
+  channels     String  @default("[]")
+  notes        String?
+  active       Boolean @default(true)
+  createdAt    DateTime @default(now())
+
+  @@index([active])
+}
+
+/// Trusted person ("responsible adult") paired to the user — can check in
+/// remotely. Pairing is consent-based, revocable and audit-logged.
+model CompanionLink {
+  id           String    @id @default(cuid())
+  name         String    @default("Companion")
+  contact      String? // phone or email for the invite
+  /// one-time pairing token (hashed at rest); single-use, expires
+  tokenHash    String    @unique
+  status       String    @default("invited") // invited | active | revoked
+  /// JSON string[] — scopes granted: status | meds | vitals | location | live_audio
+  scopes       String    @default("[\"status\",\"meds\",\"vitals\"]")
+  alsoEmergency Boolean  @default(true) // auto-added to emergency contacts on activation
+  invitedAt    DateTime  @default(now())
+  activatedAt  DateTime?
+  lastSeenAt   DateTime?
+
+  @@index([status])
+}
+
+/// One emergency activation — the full audit trail + dispatcher package
+model EmergencyEvent {
+  id          String    @id @default(cuid())
+  kind        String    @default("sos") // sos | fall | checkin_missed
+  status      String    @default("active") // active | cancelled | resolved
+  /// JSON { lat, lng, accuracyM } — captured at trigger time
+  location    String?
+  /// JSON { country, emergencyNumber, nearest: { name, address, phone, distanceM } | null, plusCode? , mapsUrl }
+  context     String?
+  /// Full dispatcher package snapshot (profile, readings, meds, contacts…)
+  packageJson String?
+  /// Public read-only share token for the dispatcher card page
+  shareToken  String    @unique
+  /// JSON channel names attempted: ["push","email","sms","whatsapp"]
+  notifiedVia String    @default("[]")
+  note        String?
+  startedAt   DateTime  @default(now())
+  resolvedAt  DateTime?
+
+  @@index([status])
+  @@index([startedAt])
 }

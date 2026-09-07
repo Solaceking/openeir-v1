@@ -18,7 +18,7 @@ import { toast } from 'sonner'
 import {
   LayoutDashboard, PenLine, ListOrdered, Pill, Activity, BookOpen,
   FlaskConical, FileText, Settings, Sun, Moon, Monitor, Wifi, WifiOff,
-  Accessibility, Sparkles, Mic, MessagesSquare, Menu, ChevronRight,
+  Accessibility, Sparkles, Mic, MessagesSquare, Menu, ChevronRight, Siren,
 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { OpenEirLogo } from '@/components/logo'
@@ -30,6 +30,7 @@ const ICONS: Record<ViewKey, typeof LayoutDashboard> = {
   voice: Mic,
   readings: ListOrdered,
   medications: Pill,
+  safety: Siren,
   trends: Activity,
   story: BookOpen,
   whatif: FlaskConical,
@@ -39,14 +40,14 @@ const ICONS: Record<ViewKey, typeof LayoutDashboard> = {
 
 /** Desktop sidebar groups */
 const GROUPS: { label: string; keys: ViewKey[] }[] = [
-  { label: 'Care', keys: ['dashboard', 'talk', 'record', 'voice', 'readings', 'medications'] },
+  { label: 'Care', keys: ['dashboard', 'talk', 'record', 'voice', 'readings', 'medications', 'safety'] },
   { label: 'Insight', keys: ['trends', 'story', 'whatif', 'reports'] },
   { label: 'System', keys: ['settings'] },
 ]
 
 /** Mobile bottom bar: the four essentials + More */
 const MOBILE_PRIMARY: ViewKey[] = ['dashboard', 'talk', 'record', 'medications']
-const MOBILE_MORE: ViewKey[] = ['voice', 'readings', 'trends', 'story', 'whatif', 'reports', 'settings']
+const MOBILE_MORE: ViewKey[] = ['safety', 'voice', 'readings', 'trends', 'story', 'whatif', 'reports', 'settings']
 
 export function useRealtimeInsights(onNew: (payload: { title: string; body: string; severity: string; origin: string }) => void) {
   const [connected, setConnected] = useState(false)
