@@ -8,6 +8,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-newsreader), ui-serif, Georgia, serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -120,6 +121,38 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ---------- typographic identity ---------- */
+
+/* Display serif for page headings — the app's editorial voice.
+   Scoped to main content h1/h2 so chrome stays crisp sans. */
+main h1, main h2 {
+  font-family: var(--font-newsreader), ui-serif, Georgia, serif;
+  font-weight: 500;
+  letter-spacing: -0.015em;
+}
+main h1 em, main h2 em {
+  font-style: italic;
+  font-weight: 400;
+}
+
+/* Instrument-grade numbers: vitals never jitter */
+main table, .numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv03" 1;
+}
+
+/* brand-tinted selection */
+::selection {
+  background: color-mix(in oklab, var(--primary) 22%, transparent);
+}
+
+/* refined card elevation for dark clinical night */
+.dark .elevate {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.4),
+    0 0 0 1px oklch(1 0 0 / 0.04) inset;
 }
 
 /* ---------- OpenEir accessibility & polish ---------- */
