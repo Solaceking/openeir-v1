@@ -3,10 +3,9 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  User, Target, Bot, Palette, Languages, DatabaseBackup, Plug, Plus,
-  Loader2, Trash2, PlayCircle, Copy, Check, Star, Pencil,
+  User, Target, Bot, Palette, Languages, DatabaseBackup, Plug, Copy, Check,
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
@@ -15,11 +14,10 @@ import { Switch } from '@/components/ui/switch'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
-import { useProfile, useSaveProfile, useProviders } from '@/lib/api-client'
+import { useProfile, useSaveProfile } from '@/lib/api-client'
 import { useUI } from '@/lib/store'
 import { useI18n, useT } from '@/lib/i18n'
-import { DEFAULT_BUILTIN_MODEL } from '@/lib/ai/model-default'
+import { AiProvidersSection } from '@/components/settings/ai-providers'
 import { toast } from 'sonner'
 
 const PACK_CHOICES = [
@@ -32,7 +30,6 @@ const PACK_CHOICES = [
 export function SettingsView() {
   const { t } = useT()
   const profile = useProfile()
-  const providers = useProviders()
   const { simpleMode, largeText, highContrast, setAppearance } = useUI()
   const i18n = useI18n()
 
@@ -55,9 +52,9 @@ export function SettingsView() {
           {profile.data && <ProfileForm p={profile.data.profile} />}
         </TabsContent>
 
-        {/* ------------ AI providers ------------ */}
+        {/* ------------ AI providers + agent harness ------------ */}
         <TabsContent value="ai">
-          <ProvidersPanel providers={providers} />
+          <AiProvidersSection />
         </TabsContent>
 
         {/* ------------ Appearance ------------ */}
@@ -178,193 +175,6 @@ export function SettingsView() {
           </Card>
         </TabsContent>
       </Tabs>
-    </div>
-  )
-}
-
-// ---------------- AI providers panel ----------------
-type ProviderRow = NonNullable<ReturnType<typeof useProviders>['data']>['providers'][number]
-
-function ProvidersPanel({ providers }: { providers: ReturnType<typeof useProviders> }) {
-  const { t } = useT()
-  const qc = useQueryClient()
-  const [open, setOpen] = useState(false)
-  const [editing, setEditing] = useState<ProviderRow | null>(null)
-  const [label, setLabel] = useState('')
-  const [adapter, setAdapter] = useState('openai_compatible')
-  const [baseUrl, setBaseUrl] = useState('')
-  const [model, setModel] = useState('')
-  const [apiKey, setApiKey] = useState('')
-  const [priority, setPriority] = useState(50)
-  const [testing, setTesting] = useState<string | null>(null)
-  const [testResult, setTestResult] = useState<string | null>(null)
-
-  const resetForm = () => {
-    setEditing(null); setLabel(''); setAdapter('openai_compatible'); setBaseUrl(''); setModel(''); setApiKey(''); setPriority(50)
-  }
-
-  const openEdit = (p: ProviderRow) => {
-    setEditing(p); setLabel(p.label); setAdapter(p.adapter); setBaseUrl(p.baseUrl ?? '')
-    setModel(p.model ?? ''); setApiKey(''); setPriority(p.priority); setOpen(true)
-  }
-
-  const saveProvider = useMutation({
-    mutationFn: async (editingRow: ProviderRow | null) => {
-      const payload = { label, adapter, baseUrl: baseUrl || null, model: model || null, apiKey: apiKey || null, priority }
-      const res = editingRow
-        ? await fetch(`/api/ai/providers/${editingRow.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-        : await fetch('/api/ai/providers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
-      if (!res.ok) throw new Error((await res.json().catch(() => null))?.error ?? 'Save failed')
-    },
-    onSuccess: (_data, editingRow) => {
-      setOpen(false); resetForm(); void qc.invalidateQueries({ queryKey: ['providers'] })
-      toast.success(editingRow ? 'Provider updated' : 'Provider added')
-    },
-    onError: (e: Error) => toast.error(e.message),
-  })
-
-  const patch = async (id: string, body: Record<string, unknown>) => {
-    await fetch(`/api/ai/providers/${id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    void qc.invalidateQueries({ queryKey: ['providers'] })
-  }
-
-  const remove = async (id: string) => {
-    await fetch(`/api/ai/providers/${id}`, { method: 'DELETE' })
-    void qc.invalidateQueries({ queryKey: ['providers'] })
-    toast.success('Provider removed')
-  }
-
-  const test = async (id: string) => {
-    setTesting(id); setTestResult(null)
-    try {
-      const res = await fetch(`/api/ai/providers/${id}/test`, { method: 'POST' })
-      const body = await res.json()
-      setTestResult(body.detail ?? (body.ok ? 'Connected.' : 'Failed.'))
-      void qc.invalidateQueries({ queryKey: ['providers'] })
-    } catch {
-      setTestResult('Test request failed.')
-    } finally {
-      setTesting(null)
-    }
-  }
-
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center justify-between text-sm font-medium text-muted-foreground">
-            <span>Provider fallback chain — lowest priority number answers first</span>
-            <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm() }}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5"><Plus className="h-3.5 w-3.5" aria-hidden />Add provider</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>{editing ? 'Edit AI provider' : 'Add AI provider'}</DialogTitle></DialogHeader>
-                <div className="space-y-3">
-                  <div><Label>Label</Label><Input value={label} onChange={(e) => setLabel(e.target.value)} className="mt-1.5" placeholder="My Ollama" /></div>
-                  <div><Label>Adapter</Label>
-                    <Select value={adapter} onValueChange={setAdapter} disabled={editing !== null}>
-                      <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="openai_compatible">OpenAI-compatible (OpenAI, OpenRouter, Mistral, DeepSeek, GLM, LM Studio…)</SelectItem>
-                        <SelectItem value="ollama">Ollama (local)</SelectItem>
-                        <SelectItem value="anthropic">Anthropic</SelectItem>
-                        <SelectItem value="builtin_zai">Built-in OpenEir AI</SelectItem>
-                      </SelectContent>
-                    </Select></div>
-                  {adapter !== 'builtin_zai' && (
-                    <div><Label>Base URL</Label>
-                      <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} className="mt-1.5 font-mono text-xs"
-                        placeholder={adapter === 'ollama' ? 'http://localhost:11434/v1' : 'https://openrouter.ai/api/v1'} /></div>
-                  )}
-                  <div><Label>Model</Label><Input value={model} onChange={(e) => setModel(e.target.value)} className="mt-1.5" placeholder={adapter === 'builtin_zai' ? DEFAULT_BUILTIN_MODEL : 'llama3.1:8b'} />
-                    {adapter === 'builtin_zai' && (
-                      <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-                        Pick any model id the built-in gateway supports — it is not locked to one model. Leave empty to use the default ({DEFAULT_BUILTIN_MODEL}).
-                      </p>
-                    )}
-                  </div>
-                  {adapter !== 'builtin_zai' && (
-                    <div><Label>API key {editing?.hasKey && <span className="text-muted-foreground">(leave empty to keep the stored key)</span>}</Label>
-                      <Input type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} className="mt-1.5" placeholder="sk-…" /></div>
-                  )}
-                  <div><Label>Priority (lower = preferred)</Label>
-                    <Input type="number" value={priority} onChange={(e) => setPriority(Number(e.target.value))} className="mt-1.5" /></div>
-                  <p className="text-[11px] text-muted-foreground">Keys are AES-256-GCM encrypted at rest. Local providers (Ollama, LM Studio) keep everything on your machine.</p>
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => { setOpen(false); resetForm() }}>{t('common.cancel')}</Button>
-                  <Button onClick={() => saveProvider.mutate(editing)} disabled={!label.trim() || saveProvider.isPending}>
-                    {saveProvider.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : editing ? 'Save changes' : t('common.save')}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {providers.isLoading && <p className="py-4 text-sm text-muted-foreground">Loading…</p>}
-          {providers.data?.providers.map((p) => (
-            <div key={p.id} className={`rounded-xl border p-3.5 ${p.enabled ? '' : 'opacity-55'}`}>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <span className="truncate text-sm font-semibold">{p.label}</span>
-                  {p.isDefault && <Badge className="border-0 bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"><Star className="mr-1 h-3 w-3" aria-hidden />default</Badge>}
-                  <Badge variant="outline" className="text-[10px]">{p.adapter}</Badge>
-                  {p.privacyMode && <Badge variant="outline" className="text-[10px]">PII-stripped</Badge>}
-                  {p.lastLatencyMs !== null && <span className="text-[10px] text-muted-foreground">{p.lastLatencyMs} ms</span>}
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Test ${p.label}`} onClick={() => test(p.id)} disabled={testing !== null}>
-                    {testing === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <PlayCircle className="h-4 w-4" />}
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Edit ${p.label}`} onClick={() => openEdit(p)}>
-                    <Pencil className="h-3.5 w-3.5" />
-                  </Button>
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Make default" onClick={() => patch(p.id, { isDefault: true, enabled: true })}>
-                    <Star className="h-3.5 w-3.5" />
-                  </Button>
-                  <Switch
-                    checked={p.enabled} onCheckedChange={(v) => patch(p.id, { enabled: v })}
-                    aria-label={`Toggle ${p.label} enabled`}
-                  />
-                  <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Delete provider" onClick={() => remove(p.id)}>
-                    <Trash2 className="h-3.5 w-3.5 text-muted-foreground" />
-                  </Button>
-                </div>
-              </div>
-              <div className="mt-1 truncate font-mono text-[11px] text-muted-foreground">
-                {p.model ?? '—'}{p.baseUrl ? ` · ${p.baseUrl}` : ''} {p.hasKey ? '· key stored' : ''}
-              </div>
-              {p.lastStatus && !p.lastStatus.startsWith('ok') && (
-                <div className="mt-1 truncate text-[11px] text-rose-600 dark:text-rose-400">{p.lastStatus}</div>
-              )}
-            </div>
-          ))}
-          {testResult && (
-            <div className="rounded-lg border border-teal-200 bg-teal-50/60 px-3 py-2 text-xs text-teal-900 dark:border-teal-900 dark:bg-teal-950/40 dark:text-teal-200">{testResult}</div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Recent AI usage</CardTitle></CardHeader>
-        <CardContent>
-          {providers.data?.usage.length ? (
-            <div className="space-y-1.5">
-              {providers.data.usage.slice(0, 8).map((u, i) => (
-                <div key={i} className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">{u.purpose} · {u.providerLabel}</span>
-                  <span className="flex items-center gap-2">
-                    <span className="text-muted-foreground">{u.latencyMs} ms</span>
-                    <Badge variant="outline" className={`text-[10px] ${u.ok ? 'border-emerald-300 text-emerald-700 dark:text-emerald-400' : 'border-rose-300 text-rose-700 dark:text-rose-400'}`}>{u.ok ? 'ok' : 'failed'}</Badge>
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : <p className="text-sm text-muted-foreground">No AI calls yet.</p>}
-        </CardContent>
-      </Card>
     </div>
   )
 }

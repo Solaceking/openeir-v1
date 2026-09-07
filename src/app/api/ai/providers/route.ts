@@ -6,7 +6,7 @@ import { encryptSecret } from '@/lib/crypto'
 
 export const dynamic = 'force-dynamic'
 
-const ADAPTERS = ['builtin_zai', 'openai_compatible', 'anthropic', 'ollama'] as const
+const ADAPTERS = ['builtin_zai', 'openai_compatible', 'anthropic', 'ollama', 'cli'] as const
 
 const createSchema = z.object({
   label: z.string().min(1).max(60),
@@ -51,7 +51,8 @@ export async function POST(req: Request) {
   const parsed = await parseBody(req, createSchema)
   if ('response' in parsed) return parsed.response
   const d = parsed.data
-  if (d.adapter !== 'builtin_zai' && !d.baseUrl) return fail('baseUrl is required for external providers', 422)
+  // builtin needs neither URL nor key; harness rows store the CLI id in `model`
+  if (!['builtin_zai', 'cli'].includes(d.adapter) && !d.baseUrl) return fail('baseUrl is required for external providers', 422)
   const provider = await db.aiProviderConfig.create({
     data: {
       label: d.label,

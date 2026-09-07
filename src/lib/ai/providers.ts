@@ -6,6 +6,7 @@
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
 import { DEFAULT_BUILTIN_MODEL, DEFAULT_BUILTIN_VISION_MODEL, isVisionModelId } from '@/lib/ai/model-default'
+import { callCliAgent } from '@/lib/ai/harness'
 
 export interface ChatImage { mediaType: string; dataBase64: string }
 
@@ -158,9 +159,17 @@ export async function completeChat(
     const started = Date.now()
     try {
       const apiKey = decryptSecret(row.apiKeyEnc)
+      // Harnesses are text-only — fail fast (with a clear reason) so vision
+      // requests fall through to an API provider instead of a garbled prompt.
+      if (row.adapter === 'cli' && messages.some((m) => m.images?.length)) {
+        throw new Error(`harness ${row.label} cannot carry images — configure an API provider for vision`)
+      }
+      const systemText = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n')
+      const userText = messages.filter((m) => m.role !== 'system').map((m) => m.content).join('\n\n')
       let text: string
       if (row.adapter === 'builtin_zai') text = await callBuiltinZai(messages, row.model)
       else if (row.adapter === 'anthropic') text = await callAnthropic(row, apiKey, messages)
+      else if (row.adapter === 'cli') text = await callCliAgent(row.model ?? 'claude', systemText, userText)
       else text = await callOpenAiCompatible(row, apiKey, messages) // openai_compatible & ollama
       const latency = Date.now() - started
       await db.aiUsage.create({
