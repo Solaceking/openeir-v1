@@ -64,7 +64,8 @@
   --popover: #fffefa;
   --popover-foreground: #20302c;
   --primary: #0f766e;
-  --primary-foreground: #fdfbf5;
+  /* pure white on deep teal — crisp, WCAG-AA at any size (cream read muddy) */
+  --primary-foreground: #ffffff;
   --secondary: #eaf2ee;
   --secondary-foreground: #0b5d56;
   --muted: #f4efe3;

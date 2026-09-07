@@ -55,16 +55,18 @@ export function OrbCanvas({
   }, [levelRef, ampRef])
 
   if (!webgl) {
-    // CSS fallback orb — still state-reactive at the color level
+    // CSS smoke fallback — soft rising mist, still state-reactive in color
     const tint =
-      state === 'listening' ? 'from-teal-400 to-cyan-300'
-      : state === 'thinking' ? 'from-violet-500 to-fuchsia-400'
-      : state === 'speaking' ? 'from-teal-300 to-emerald-200'
-      : 'from-teal-600 to-teal-400'
+      state === 'listening' ? 'bg-teal-300'
+      : state === 'thinking' ? 'bg-violet-400'
+      : state === 'speaking' ? 'bg-teal-200'
+      : 'bg-teal-500'
     return (
-      <div className={`relative items-center justify-center ${className}`} style={{ width: size, height: size }}>
-        <div className={`absolute inset-0 rounded-full bg-gradient-to-br ${tint} opacity-80 blur-md`} aria-hidden />
-        <div className={`absolute inset-3 rounded-full bg-gradient-to-br ${tint} animate-pulse`} aria-hidden />
+      <div className={`relative items-center justify-center ${className}`} style={{ width: size, height: size }} aria-hidden>
+        <div className={`absolute bottom-[8%] left-1/2 h-[46%] w-[58%] -translate-x-1/2 rounded-full ${tint} opacity-50 blur-2xl`} />
+        <div className={`absolute bottom-[30%] left-[38%] h-[36%] w-[38%] rounded-full ${tint} opacity-35 blur-2xl animate-pulse`} />
+        <div className={`absolute bottom-[48%] left-[54%] h-[28%] w-[26%] rounded-full ${tint} opacity-25 blur-xl animate-pulse`} style={{ animationDelay: '700ms' }} />
+        <div className={`absolute bottom-[2%] left-1/2 h-[16%] w-[30%] -translate-x-1/2 rounded-full ${tint} opacity-70 blur-md`} />
       </div>
     )
   }

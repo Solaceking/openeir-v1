@@ -50,9 +50,11 @@ If the AI provider is unreachable, the failed send renders an **actionable banne
        └────────► back to LISTENING
 ```
 
-- **The orb** — a dependency-free WebGL engine: domain-warped fBm plasma with a 4-state palette (idle / listening / thinking / speaking), point-star field, film grain. Your microphone energy and Eir's actual audio amplitude drive the surface — it is a level meter, not a decoration.
+- **Eir's presence — the smoke** — a dependency-free WebGL shader of rising mist in the spirit of Gemini's living smoke: a swaying, climbing plume of soft teal fog with a luminous core and cream motes, no hard edges. Four state palettes (idle / listening / thinking / speaking). Your microphone energy and Eir's actual audio amplitude stir and brighten the mist — it is a level meter, not a decoration. Graceful CSS-smoke fallback when WebGL is missing. She is *presented* by Eir's portrait (the mascot) above the plume.
+- **Two ears, automatic hand-off** — Web Speech first (instant interim text). If the browser speech service is missing or unreachable (Firefox, blocked Google endpoints, captive networks), OpenEir switches to the **server ear**: the mic stream is VAD-gated, captured with `MediaRecorder`, and transcribed by your own server (`POST /api/voice/stt` via the built-in GLM gateway — audio is never stored). A dead-air watchdog (mic hears you, no words come back) triggers the same hand-off without you doing anything.
 - **Barge-in** — start talking while Eir is speaking and she stops *mid-sentence* and listens. Two triggers: a sustained mic-RMS gate (with echo cooldown so she doesn't interrupt herself) or a final speech-recognition result arriving during playback.
 - **Sentence streaming** — replies are split into sentences; each is synthesized while the previous one plays (warm prefetch), so perceived latency is one sentence, not one paragraph.
+- **Hardened against hangs** — every provider call carries a fetch timeout and a 45 s thinking watchdog; a wedged turn recovers to LISTENING with a visible message instead of freezing the session. Echo of Eir's own greeting/replies (speakers without echo cancellation) is dropped by a time-windowed containment check that still lets short answers like "yes" through.
 - **The composer never dies** — mic loss, permission denial, unsupported browser or an embedded iframe without mic access degrade to the typed composer *inside the live session*. The session never kills itself.
 - **Honest errors** — if synthesis or recognition fails structurally, Eir says so in text, and provider/setup errors get the Settings deep-link.
 
@@ -63,6 +65,7 @@ If the AI provider is unreachable, the failed send renders an **actionable banne
 | **Text → speech** | **Edge neural voices** (`msedge-tts`) — 14 curated voices across US/UK/AU/IE/IN accents, adjustable rate 0.6–1.6× | **Your server** (`POST /api/voice/tts`) → MP3 → cached on disk (`.tts-cache`, ETag/304, sha256 keys) | **None** |
 | Text → speech (fallback) | Browser `SpeechSynthesis` | Device | None |
 | **Speech → text** | Web Speech API (`SpeechRecognition`) | Browser (Chrome/Edge/Safari; Chrome needs network) | None |
+| Speech → text (**server ear** fallback) | Built-in GLM gateway ASR (`z-ai-web-dev-sdk`) | **Your server** (`POST /api/voice/stt`) — base64 utterance in, transcript out, nothing persisted | **None** |
 
 TTS requests are zod-validated (`text ≤ 600 chars`, voice allow-list, rate clamp) and served as `audio/mpeg`. The client keeps an in-memory blob cache (~80 entries) and speaks via `Audio` elements; any failure falls back to device voices — **readbacks never go silent**.
 
@@ -72,11 +75,12 @@ TTS requests are zod-validated (`text ≤ 600 chars`, voice allow-list, rate cla
 |---|---|---|---|---|
 | Talk thread + action cards | ✅ | ✅ | ✅ | ✅ |
 | Live voice: Eir speaks (Edge TTS) | ✅ | ✅ | ✅ | ✅ |
-| Live voice: you speak (STT) | ✅¹ | ✅¹ | ✅ | ❌ → typed composer |
+| Live voice: you speak (STT) | ✅¹ | ✅¹ | ✅ | ✅² (server ear) |
 | Voice view dictation | ✅¹ | ✅¹ | ✅ | ❌ → typed form |
 | Bluetooth devices | ✅ | ✅ | ❌ | ❌ |
 
-¹ Chrome/Edge STT uses a network service; fully offline STT (transformers.js Whisper) is on the roadmap.
+¹ Chrome/Edge STT uses a network service; if it is blocked, the server ear takes over automatically.
+² Firefox has no Web Speech API at all — the live session captures VAD-gated utterances and transcribes them on your server.
 
 ### Microphone permission & HTTPS — the #1 gotcha
 

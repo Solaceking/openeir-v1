@@ -1,13 +1,25 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- OpenEir brand icon (icon only — no wordmark) -->
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80" width="160" height="160">
+<!-- OpenEir app icon — apothecary cross pad, cream vitality node.
+     Art direction provided by the founder: cream tile, teal gradient pills,
+     the middle circle strictly cream. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
   <defs>
-    <linearGradient id="openeir-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0d9488"/>
-      <stop offset="100%" stop-color="#0f766e"/>
+    <linearGradient id="ms-teal-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0d9488" />
+      <stop offset="100%" stop-color="#0f766e" />
     </linearGradient>
   </defs>
-  <rect x="30" y="10" width="20" height="60" rx="10" fill="url(#openeir-grad)"/>
-  <rect x="10" y="30" width="60" height="20" rx="10" fill="url(#openeir-grad)" opacity="0.8"/>
-  <circle cx="40" cy="40" r="6" fill="#ffffff"/>
+
+  <!-- Square Background Pad -->
+  <rect width="160" height="160" rx="28" fill="#FDFBF5" />
+
+  <!-- Centered Cross Mark -->
+  <g transform="translate(40, 40)">
+    <!-- Vertical Pill -->
+    <rect x="30" y="10" width="20" height="60" rx="10" fill="url(#ms-teal-grad)" />
+    <!-- Horizontal Pill -->
+    <rect x="10" y="30" width="60" height="20" rx="10" fill="url(#ms-teal-grad)" opacity="0.8" />
+    <!-- Center Vitality Circle — cream -->
+    <circle cx="40" cy="40" r="6" fill="#FDFBF5" />
+  </g>
 </svg>

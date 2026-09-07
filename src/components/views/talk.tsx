@@ -8,6 +8,7 @@
 // Deterministic health intents surface as in-chat confirmation cards.
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   SendHorizontal, Mic, MicOff, AudioLines, Eraser, RefreshCcw, Sparkles,
@@ -221,29 +222,18 @@ export function TalkView() {
         subtitle={t('talk.subtitle')}
         icon={OpenEirLogo}
         actions={
-          <>
-            {/* immersive voice conversation */}
-            <Button
-              variant="outline" size="sm"
-              className="gap-1.5 border-primary/30 text-primary hover:bg-primary/10 hover:text-primary"
-              onClick={() => setVoiceOpen(true)}
-            >
-              <AudioLines className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">{t('talk.live')}</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" aria-label={t('talk.options')}>
-                  <Eraser className="h-4.5 w-4.5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setClearOpen(true)} className="text-destructive focus:text-destructive">
-                  <Eraser className="mr-2 h-4 w-4" /> {t('talk.clear')}
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={t('talk.options')}>
+                <Eraser className="h-4.5 w-4.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setClearOpen(true)} className="text-destructive focus:text-destructive">
+                <Eraser className="mr-2 h-4 w-4" /> {t('talk.clear')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         }
       />
 
@@ -260,10 +250,17 @@ export function TalkView() {
         )}
         {loaded && messages.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center gap-5 px-4 text-center">
-            <div className="relative flex h-20 w-20 items-center justify-center rounded-3xl border border-primary/20 bg-card">
-              <OpenEirLogo className="h-12 w-12" aria-hidden />
-              <span className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-hidden>
-                <Sparkles className="h-3.5 w-3.5" />
+            <div className="relative flex h-24 w-24 items-center justify-center">
+              <Image
+                src="/mascot/eir-256.png"
+                alt="Eir"
+                width={96}
+                height={96}
+                className="h-24 w-24 rounded-full border border-border object-cover"
+                priority
+              />
+              <span className="absolute -bottom-1 -right-1 flex h-7 w-7 items-center justify-center rounded-full border border-border bg-card" aria-hidden>
+                <Sparkles className="h-3.5 w-3.5 text-primary" />
               </span>
             </div>
             <div>
@@ -419,6 +416,16 @@ export function TalkView() {
                   : <MicOff className="h-4.5 w-4.5" />}
             </Button>
           </div>
+          {/* live voice conversation — right where you'd reach for it,
+              exactly like the big chat apps: beside the input, one tap */}
+          <button
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground transition-transform hover:scale-105 hover:bg-primary/90 active:scale-95"
+            onClick={() => setVoiceOpen(true)}
+            aria-label={t('talk.live')}
+            title={t('talk.live')}
+          >
+            <AudioLines className="h-5 w-5" aria-hidden />
+          </button>
           <Button
             size="icon"
             className="h-11 w-11 shrink-0 rounded-full transition-transform hover:scale-105 active:scale-95"

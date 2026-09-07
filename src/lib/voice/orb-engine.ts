@@ -1,12 +1,13 @@
-// OpenEir — the Eir Orb. A dependency-free WebGL fragment-shader "hanging
-// blob" in the spirit of OpenAI's Advanced Voice sphere and Gemini's smoke:
-// a breathing plasma body over a deep-space backdrop, driven by real signals:
+// OpenEir — Eir's presence. A dependency-free WebGL fragment shader of RISING
+// SMOKE in the spirit of Gemini's living mist: no hard orb, no sphere — a soft
+// translucent plume that breathes, sways and climbs, driven by real signals:
 //   - uW0..3  blended conversation state (idle / listening / thinking / speaking)
-//   - uLevel  live microphone RMS (the orb swells when YOU speak)
-//   - uAmp    live amplitude of Eir's own neural voice playback (she shimmers
+//   - uLevel  live microphone RMS (the smoke stirs when YOU speak)
+//   - uAmp    live amplitude of Eir's own neural voice playback (she glows
 //             while she talks — tapped from the <audio> element's analyser)
+// Flat-brand palette: deep teal mist, luminous aqua energy, cream motes.
 // Falls back gracefully: if WebGL is unavailable the component renders a CSS
-// orb instead; the conversation keeps working either way.
+// smoke fallback; the conversation keeps working either way.
 
 const VERT = `
 attribute vec2 aPos;
@@ -24,7 +25,7 @@ uniform float uTime;
 uniform vec4 uW;       // state weights: idle, listening, thinking, speaking
 uniform float uLevel;  // mic RMS 0..1 (smoothed)
 uniform float uAmp;    // Eir voice amplitude 0..1 (smoothed)
-uniform float uDark;   // 1 = dark theme
+uniform float uDark;   // 1 = dark scene (the overlay is always dark)
 uniform float uReduced; // 1 = reduced motion (calm everything down)
 varying vec2 vUv;
 
@@ -95,59 +96,68 @@ void main(){
   uv.x *= aspect;
 
   float t = uTime * mix(1.0, 0.35, uReduced);
-  float wListen = uW.y; float wThink = uW.z; float wSpeak = uW.w;
+  float wIdle = uW.x; float wListen = uW.y; float wThink = uW.z; float wSpeak = uW.w;
 
-  // gentle hanging drift (the blob floats, it is never pinned)
-  vec2 drift = vec2(sin(t * 0.32) * 0.015, cos(t * 0.24) * 0.02);
-  vec2 p = uv - drift;
-  float r = length(p);
-  float ang = atan(p.y, p.x);
+  // whole-plume sway — candle smoke leaning in a slow draft
+  vec2 p = uv;
+  p.x += 0.085 * sin(t * 0.50 + uv.y * 1.6);
+  p.x += 0.045 * sin(t * 0.90 + uv.y * 3.1 + 1.7);
 
-  // domain-warped plasma surface
-  vec3 np = vec3(p * 1.55, t * 0.42 + wThink * t * 0.35);
-  float warp = fbm(np + fbm(np * 1.3) * 0.9);
-  // state energy: listening reacts to the user's mic, speaking to Eir's voice
-  float energy = uLevel * (0.10 + 0.16 * wListen) + uAmp * (0.12 + 0.20 * wSpeak);
-  float breathe = 1.0 + 0.022 * sin(t * 1.35) + uAmp * 0.05 + uLevel * 0.04;
-  float radius = 0.50 * breathe + warp * 0.14 + energy;
+  // rising advection: noise space climbs so the wisps drift upward
+  // (x>y feature scale → vertically stretched, silk-like plumes)
+  float climb = t * (0.50 + wThink * 0.40 + wListen * 0.10 + wSpeak * 0.18);
+  vec3 np = vec3(p * vec2(1.55, 0.78), climb + uv.y * 0.55);
+  float warp = fbm(np + fbm(np * 1.5 + climb * 0.18) * 0.85);
 
-  float d = r - radius;
-  float body = smoothstep(0.015, -0.22, d);
-  float inner = smoothstep(-0.28, -0.62, d); // hot core
-  float rim = exp(-9.0 * max(d + 0.03, 0.0)) * step(-0.05, d);
+  // plume silhouette — rooted narrow at the base, wispier with height
+  float h = uv.y + 0.70;                              // 0 at the root, ~1.7 at the crown
+  float spread = 0.26 + h * 0.30;
+  float dx = abs(p.x + warp * (0.16 + 0.34 * h));
+  float crown = smoothstep(1.60, 0.70, h);            // dissolve into air at the top
+  float root = smoothstep(0.02, 0.50, h);             // fade the very root in/out
+  float body = exp(-(dx * dx) / (spread * spread)) * crown * root;
 
-  // state palettes (teal home base; violet thought; luminous speech)
-  vec3 cIdle = mix(vec3(0.020, 0.235, 0.215), vec3(0.060, 0.620, 0.560), clamp(warp * 0.7 + 0.5, 0.0, 1.0));
-  vec3 cList = mix(vec3(0.030, 0.330, 0.360), vec3(0.220, 0.880, 0.810), clamp(warp * 0.6 + 0.5 + uLevel * 0.7, 0.0, 1.0));
-  vec3 cThink = mix(vec3(0.170, 0.090, 0.330), vec3(0.560, 0.380, 0.980), clamp(warp * 0.6 + 0.5, 0.0, 1.0));
-  vec3 cSpeak = mix(vec3(0.040, 0.430, 0.470), vec3(0.480, 0.960, 0.880), clamp(warp * 0.5 + 0.5 + uAmp * 0.8, 0.0, 1.0));
-  vec3 bodyCol = uW.x * cIdle + uW.y * cList + uW.z * cThink + wSpeak * cSpeak;
-  vec3 coreCol = bodyCol * 1.65 + vec3(0.10);
+  // living density — layered noise, slow breathing
+  float breathe = 0.5 + 0.5 * sin(t * 0.85);
+  float density = body * (0.55 + 0.68 * clamp(warp * 0.9 + 0.5, 0.0, 1.0));
+  density *= 0.84 + 0.16 * breathe;
 
-  vec3 col = body * mix(bodyCol, coreCol, inner);
-  float glowK = 0.55 + wListen * 0.5 + wSpeak * 0.6 + wThink * 0.4;
-  col += rim * glowK * bodyCol * 1.6;
-  // outer aura — the "smoke"
-  float aura = exp(-4.5 * max(d, 0.0)) * step(-0.01, d);
-  col += aura * 0.18 * bodyCol * glowK;
+  // energy: your voice stirs the mist while listening; hers while speaking
+  float stir = uLevel * (0.30 + 0.90 * wListen) + uAmp * (0.26 + 0.95 * wSpeak);
+  density += body * stir * 0.60;
 
-  // faint stars — tiny twinkling points, not blocky cells
-  vec2 sg = uv * 42.0;
-  vec2 cell = floor(sg);
-  vec2 f = fract(sg) - 0.5;
-  float starTw = hash21(cell);
+  // luminous core near the root — a lantern inside the mist
+  vec2 coreP = uv - vec2(sin(t * 0.5) * 0.05, -0.36);
+  float core = exp(-dot(coreP, coreP) * 8.0);
+
+  // state palettes (teal home base; violet-tinged thought; seafoam speech)
+  vec3 mIdle = mix(vec3(0.040, 0.260, 0.240), vec3(0.130, 0.560, 0.510), clamp(warp * 0.8 + 0.5, 0.0, 1.0));
+  vec3 mList = mix(vec3(0.040, 0.300, 0.320), vec3(0.330, 0.880, 0.800), clamp(warp * 0.7 + 0.5 + uLevel * 0.8, 0.0, 1.0));
+  vec3 mThink = mix(mIdle * 0.95, vec3(0.480, 0.380, 0.880), 0.42);
+  vec3 mSpeak = mix(vec3(0.060, 0.380, 0.380), vec3(0.600, 0.940, 0.870), clamp(warp * 0.6 + 0.5 + uAmp * 0.85, 0.0, 1.0));
+  vec3 mist = wIdle * mIdle + wListen * mList + wThink * mThink + wSpeak * mSpeak;
+
+  vec3 col = mist * density * (1.25 + stir * 0.9);
+  col += mist * core * (0.85 + stir * 0.8);
+
+  // cream light-dust rising inside the smoke — barely-there, alive
+  vec2 mg = uv * vec2(9.0, 7.0);
+  mg.y -= t * 0.55;
+  vec2 cell = floor(mg);
+  vec2 f = fract(mg) - 0.5;
+  float mh = hash21(cell);
   vec2 jitter = vec2(hash21(cell + 7.1), hash21(cell + 3.7)) - 0.5;
-  float star = smoothstep(0.10, 0.0, length(f - jitter * 0.6)) * step(0.993, starTw);
-  float tw = 0.35 + 0.65 * (0.5 + 0.5 * sin(t * 2.0 + starTw * 40.0));
-  float starA = star * tw * (1.0 - body);
-  col += vec3(0.85, 0.98, 1.0) * starA * 0.85;
+  float mote = smoothstep(0.085, 0.0, length(f - jitter * 0.55)) * step(0.972, mh);
+  float tw = 0.30 + 0.70 * (0.5 + 0.5 * sin(t * 1.6 + mh * 40.0));
+  float moteA = mote * tw * clamp(density * 2.4, 0.0, 1.0);
+  col += vec3(0.99, 0.97, 0.92) * moteA * 0.55;
 
-  // film grain — kills banding on gradients (visible areas only)
-  float grain = (hash21(vUv * uRes + fract(t) * 100.0) - 0.5) * 0.012;
-  col += grain * (0.3 + 0.7 * body);
+  // film grain — kills banding on the soft gradients
+  float grain = (hash21(vUv * uRes + fract(t) * 100.0) - 0.5) * 0.010;
+  col += grain * (0.3 + 0.7 * clamp(density * 1.5, 0.0, 1.0));
 
-  // the canvas composites over the scene: transparent outside the glow
-  float alpha = clamp(body + rim * 0.9 + aura * 0.45 + starA, 0.0, 1.0);
+  // the canvas composites over the scene: translucent smoke, no hard edges
+  float alpha = clamp(density * (0.88 + stir * 0.55) + core * (0.34 + stir * 0.30) + moteA * 0.5, 0.0, 0.95);
   gl_FragColor = vec4(col, alpha);
 }
 `
