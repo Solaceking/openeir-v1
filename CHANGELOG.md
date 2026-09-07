@@ -2,6 +2,64 @@
 
 ## Unreleased
 
+### Documentation
+- Complete documentation overhaul: new [GETTING_STARTED](docs/GETTING_STARTED.md), [AI_PROVIDERS](docs/AI_PROVIDERS.md), [VOICE_AND_TALK](docs/VOICE_AND_TALK.md), [SAFETY](docs/SAFETY.md), [MEMORY_AND_BRIEFING](docs/MEMORY_AND_BRIEFING.md) guides; full rewrite of README, API reference (all 45 endpoints), Architecture, Deployment (with one-click platform recipes), Roadmap, FAQ and Security
+
+## v1.1.0 — 2026-09-07
+
+The release where OpenEir learns to talk — and to be there when you can't.
+
+### Talk — conversational core
+- Persistent WhatsApp-grade thread (day separators, ticks, typewriter reveal, suggestion chips, retry, clear-thread) stored in SQLite
+- Fully grounded replies: profile, targets, readings, adherence, score, warnings + 16-turn window; answers cite *your* numbers
+- **Action cards**: "BP 118 over 76, pulse 64" in chat → confirm card → saved with `source: chat` (duplicate-guarded like every capture path)
+- Honest failures: unreachable provider renders an actionable banner (exact error + Settings deep-link), never a silent dead bubble
+
+### Live voice
+- One-tap full-duplex session: WebGL orb (domain-warped fBm plasma, 4-state palette, star field, grain) driven by mic RMS and real output amplitude
+- Eir speaks replies **sentence-by-sentence** with warm prefetch, and shows the text simultaneously; **barge-in** interrupts her mid-sentence (mic-RMS gate + echo cooldown, or final transcript during playback)
+- Spoken greeting on session open — audio proven before your first word
+- Composer always available: mic loss, denial, Firefox or iframes degrade to typing inside the session, never kill it
+- Voice-aware system prompt: Eir knows she can speak and hear; voice-channel replies follow speak-for-the-ear rules (≤90 words, no markdown, transcription-tolerant)
+
+### Server-side neural TTS
+- Edge neural voices (14 curated, US/UK/AU/IE/IN) synthesized by your own server via `msedge-tts` — zero API keys, disk-cached (`.tts-cache`, ETag/304), zod-validated
+- Automatic fallback to browser `SpeechSynthesis` — readbacks never go silent
+- Voice settings: engine picker, accent-grouped catalog, preview, prosody rate (0.6–1.6×) driving server synthesis
+
+### Voice capture
+- Push-to-talk dictation → deterministic on-device parser (number words, times, units, med fuzzy-match + schedule snapping) → spoken readback → confirm
+- Confidence scoring with 0.75 gate; typed fallback always visible; medications always confirm (safety invariant)
+
+### Safety layer
+- **SOS engine**: hold-1s trigger → location capture → country-correct emergency number (~60-country table) → nearest emergency department (Google Places New + Nominatim fallback) → plus-code + maps URL → full dispatcher package → contact blast → web push → audit trail (`EmergencyEvent`)
+- **Dispatcher card**: public, noindex, per-event tokenized `/sos/[token]` page — everything a human needs at 2 a.m.
+- **Emergency contacts**: multi-channel (phone/WhatsApp/email/Signal), primary flag, soft deactivation
+- **GP map search** in the onboarding wizard with geolocation biasing
+
+### Companion loop
+- Consent-based pairing: one-time sha256 invite (shown once) → token exchange → long-lived hashed viewer token; scopes (status/meds/vitals/location); revocable instantly
+- Companion dashboard: check-in freshness, app heartbeat, today's meds, vitals, active-SOS banner, **nudge** (realtime toast + web push), 60s polling
+- "I'm OK" check-in on the user side; companions auto-added to emergency contacts
+
+### Ambient intelligence
+- **Web push (VAPID auto-provisioned)**: zero-config self-hosting — keys generated into the DB on first use; endpoint pruning on 404/410, per-subscription error tracking; SW v2 with `notificationclick` (SOS = requireInteraction + vibrate); Settings → Alerts (device list, test, briefing schedule, auto-reflect)
+- **Morning Briefing**: deterministic from real data — score badge, BP vs target + trend, glucose + eA1c, adherence + streak, minute-precise today's doses, one focus action; speakable via Edge TTS; push-delivered idempotently; AmbientScheduler (60s + visibilitychange)
+- **Three-tier memory**: core (pinned) / semantic (durable) / episodic (30-day decay) with 8 deterministic extraction patterns, dedupeKey bumping, recall-count promotion, access-warm retrieval injected into chat prompts; Settings → Memory management
+- **Nightly reflection**: the day (chat, readings, doses, journal) → AI-narrated sentence stored as semantic memory; missed doses + spiking BP surface as morning insights; deterministic fallback, idempotent per day
+
+### AI platform
+- **16 provider presets** with kind badges (OpenRouter, OpenAI, Anthropic, Gemini, Z.ai, Z.ai Coding Plan, xAI, DeepSeek, Moonshot, NVIDIA, Groq, Mistral, LM Studio, Ollama, custom, built-in)
+- **Live model catalog** via models.dev: context, $/M pricing, release date, capability badges, newest-first; 12h SQLite cache with stale-on-error
+- **CLI harness (subscription auth)**: detect `claude`/`codex`/`gemini`/`opencode`, login recipes, attach-as-provider; Z.ai Coding-Plan bridge recipe; text-only with fast-fail into the chain
+- **Honest built-in AI**: `ensureBuiltinProvider()` auto-seeds on empty chains (30s TTL), gateway config detection across the 3 SDK paths, `ZAI_API_KEY`/`ZAI_BASE_URL` env bootstrap (writes config, mode 600), actionable guidance naming exact paths; Settings shows green (configured + source) or amber (setup guide) strip
+
+### Design & platform
+- Newsreader display-serif identity, instrument-grade tabular numerals, brand selection polish
+- Dark clinical-night tokens, bubble/typing/orb/thread utilities, mobile 4-essential + More bottom sheet IA with spring pill
+
+## v1.0.x
+
 ### Photo scan (OCR) — capture pipeline phase 1
 - New **Scan** tab in Record: photograph (or paste / drop) a BP monitor, glucometer or report excerpt and OpenEir suggests structured values — you always confirm before saving (never auto-logs)
 - Extraction ladder: vision model through the existing AI provider chain (excellent on 7-segment LCDs) → local tesseract.js in an isolated child process (works with no AI provider) → deterministic regex parser → manual entry
