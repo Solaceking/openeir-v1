@@ -1,0 +1,2 @@
+* -executable
+docker/entrypoint.sh executable
