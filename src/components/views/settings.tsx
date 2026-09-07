@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  User, Target, Bot, Palette, Languages, DatabaseBackup, Plug, Copy, Check,
+  User, Target, Bot, Palette, Languages, DatabaseBackup, Plug, Copy, Check, BellRing, Brain,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -18,6 +18,8 @@ import { useProfile, useSaveProfile } from '@/lib/api-client'
 import { useUI } from '@/lib/store'
 import { useI18n, useT } from '@/lib/i18n'
 import { AiProvidersSection } from '@/components/settings/ai-providers'
+import { NotificationsSection } from '@/components/settings/notifications'
+import { MemorySection } from '@/components/settings/memory'
 import { toast } from 'sonner'
 
 const PACK_CHOICES = [
@@ -41,6 +43,8 @@ export function SettingsView() {
         <TabsList className="h-auto flex-wrap">
           <TabsTrigger value="profile" className="gap-1.5"><User className="h-4 w-4" aria-hidden />{t('settings.profile')}</TabsTrigger>
           <TabsTrigger value="ai" className="gap-1.5"><Bot className="h-4 w-4" aria-hidden />{t('settings.ai')}</TabsTrigger>
+          <TabsTrigger value="alerts" className="gap-1.5"><BellRing className="h-4 w-4" aria-hidden />{t('settings.alerts')}</TabsTrigger>
+          <TabsTrigger value="memory" className="gap-1.5"><Brain className="h-4 w-4" aria-hidden />{t('settings.memory')}</TabsTrigger>
           <TabsTrigger value="appearance" className="gap-1.5"><Palette className="h-4 w-4" aria-hidden />{t('settings.appearance')}</TabsTrigger>
           <TabsTrigger value="language" className="gap-1.5"><Languages className="h-4 w-4" aria-hidden />{t('settings.language')}</TabsTrigger>
           <TabsTrigger value="agent" className="gap-1.5"><Plug className="h-4 w-4" aria-hidden />{t('settings.agent')}</TabsTrigger>
@@ -55,6 +59,16 @@ export function SettingsView() {
         {/* ------------ AI providers + agent harness ------------ */}
         <TabsContent value="ai">
           <AiProvidersSection />
+        </TabsContent>
+
+        {/* ------------ Alerts: push + briefing ------------ */}
+        <TabsContent value="alerts">
+          <NotificationsSection />
+        </TabsContent>
+
+        {/* ------------ Memory ------------ */}
+        <TabsContent value="memory">
+          <MemorySection />
         </TabsContent>
 
         {/* ------------ Appearance ------------ */}

@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Progress } from '@/components/ui/progress'
 import { BpTrendChart, ScoreRadar } from '@/components/charts'
 import { InsightFeed } from '@/components/insight-card'
+import { BriefingCard } from '@/components/briefing-card'
 import { useStats, useInsights, useLogMedication, useAskEir } from '@/lib/api-client'
 import { useUI } from '@/lib/store'
 import { categorizeBp, BP_CATEGORIES } from '@/lib/health/bp'
@@ -85,6 +86,9 @@ export function DashboardView() {
           </div>
         </div>
       )}
+
+      {/* Morning briefing */}
+      <BriefingCard />
 
       {/* Top cards */}
       <div className="grid gap-4 md:grid-cols-3">

@@ -203,6 +203,8 @@ export const en = {
     title: 'Settings',
     profile: 'Profile & targets',
     ai: 'AI providers',
+    alerts: 'Alerts & briefing',
+    memory: 'Memory',
     appearance: 'Appearance',
     language: 'Language',
     data: 'Data & backup',

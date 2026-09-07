@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { db } from '@/lib/db'
 import { ok, fail, rateLimit } from '@/lib/api-utils'
 import { publishRealtime } from '@/lib/events'
+import { sendPushToAll } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,5 +33,13 @@ export async function POST(req: Request) {
     severity: 'info',
     origin: 'companion',
   })
+  // Push fallback — the realtime toast only lands if the app is open.
+  void sendPushToAll({
+    title: `${link.name} is checking on you`,
+    body: 'Open OpenEir — or tap "I\'m OK" on the Safety page so they know you\'re fine.',
+    kind: 'nudge',
+    url: '/?view=safety',
+    tag: `nudge-${link.id}`,
+  }).catch(() => {})
   return ok({ nudged: true })
 }

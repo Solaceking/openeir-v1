@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
 import { nearestMedicalFacility, reverseGeocode, emergencyNumberForCountry, plusCode } from '@/lib/places'
+import { sendPushToAll } from '@/lib/push'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
@@ -119,10 +120,27 @@ export async function POST(req: Request) {
     },
   })
 
-  // 5) Feed the event nervous system (ambient intelligence + future automation)
+  // 5) Outbound push blast — reaches every subscribed device (user + companions)
+  //    even when the app is closed. Channels actually attempted are audited.
+  const notifiedVia: string[] = []
+  try {
+    const pushResult = await sendPushToAll({
+      title: `SOS activated — ${pkg.identity.name}`,
+      body: `Emergency package ready. Location: ${pkg.location.address ?? `${lat.toFixed(4)}, ${lng.toFixed(4)}`}. Tap to open the dispatcher card.`,
+      kind: 'sos',
+      url: `/sos/${shareToken}`,
+      tag: `sos-${event.id}`,
+    })
+    if (pushResult.sent > 0) notifiedVia.push('push')
+  } catch {
+    /* push is best-effort — never delay the SOS response */
+  }
+
+  // 6) Feed the event nervous system (ambient intelligence + future automation)
   await db.eventRecord.create({
-    data: { type: 'SOS_TRIGGERED', priority: 'critical', payload: JSON.stringify({ eventId: event.id, emergencyNumber, country: geo?.countryCode ?? null }) },
+    data: { type: 'SOS_TRIGGERED', priority: 'critical', payload: JSON.stringify({ eventId: event.id, emergencyNumber, country: geo?.countryCode ?? null, notifiedVia }) },
   })
+  await db.emergencyEvent.update({ where: { id: event.id }, data: { notifiedVia: JSON.stringify(notifiedVia) } }).catch(() => {})
 
   return ok({
     event: {

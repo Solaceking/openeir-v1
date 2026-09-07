@@ -17,6 +17,7 @@ import { completeChat } from '@/lib/ai/providers'
 import { parseVoiceCommand } from '@/lib/voice/parser'
 import { readbackFor } from '@/lib/voice/types'
 import { parseSchedule } from '@/lib/health/meds'
+import { retrieveMemories, memoriesForPrompt, extractDeterministic, storeMemories, aiExtract } from '@/lib/memory'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -114,7 +115,7 @@ async function detectAction(text: string): Promise<DetectedAction | null> {
   return null
 }
 
-function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null): string {
+function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null, memoriesBlock: string): string {
   const lines = [
     'You are Eir, the warm, precise AI health companion inside the user\'s self-hosted OpenEir app (a blood-pressure / glucose / medication companion).',
     'This is a live conversation, WhatsApp-style. Write like a caring, highly competent friend who happens to read clinical data: short paragraphs, plain text, NO markdown headings, NO bullet lists, NO emoji.',
@@ -122,6 +123,11 @@ function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthCont
     'You are NOT a doctor and never diagnose. For symptoms that may be urgent (chest pain, severe breathlessness, fainting, stroke signs), tell them plainly to seek emergency care now.',
     'You may gently encourage habits and adherence, celebrate streaks, and explain what their numbers mean in plain language. Never invent numbers you were not given.',
   ]
+  if (memoriesBlock) {
+    lines.push(
+      `\nThings you remember about the user from previous conversations (use naturally when relevant — do not recite this list, and never claim to remember what is not here):\n${memoriesBlock}`,
+    )
+  }
   if (detected) {
     lines.push(
       `The app has ALREADY detected from the user's last message: ${detected.readback} A confirmation card is shown in the chat — acknowledge it warmly in one short clause (e.g. "Got it — 118 over 76, nice numbers") but do NOT ask them to confirm again and do not claim it is saved yet.`,
@@ -158,8 +164,10 @@ export async function POST(req: Request) {
   const ctx = await buildHealthContext()
   if (!ctx) return fail('Complete setup first', 400)
 
+  const memories = await retrieveMemories(text)
+
   const messages = [
-    { role: 'system' as const, content: systemPrompt(ctx, detected) },
+    { role: 'system' as const, content: systemPrompt(ctx, detected, memoriesForPrompt(memories)) },
     ...history.map((m) => ({
       role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
       content: m.content,
@@ -179,9 +187,18 @@ export async function POST(req: Request) {
       role: 'assistant',
       content: reply,
       channel,
-      meta: JSON.stringify({ provider: result.providerLabel, model: result.model, detected: detected ?? undefined }),
+      meta: JSON.stringify({ provider: result.providerLabel, model: result.model, detected: detected ?? undefined, memoriesUsed: memories.length }),
     },
   })
+
+  // Memory writing is strictly post-reply and best-effort: deterministic
+  // patterns first, AI extractor only for substantial turns.
+  void (async () => {
+    try {
+      await storeMemories(extractDeterministic(text), userMsg.id)
+      if (text.length >= 40) await aiExtract(text, reply, userMsg.id)
+    } catch { /* never break the chat response over memory */ }
+  })()
 
   return ok({
     userMessageId: userMsg.id,

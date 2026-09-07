@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner'
 import { OpenEirLogo } from '@/components/logo'
 import { Button } from '@/components/ui/button'
+import { subscribeToPush, pushSupported, readPushState } from '@/lib/push-client'
 
 interface ViewData {
   companionName: string
@@ -32,6 +33,7 @@ function ago(hours: number | null): string {
 }
 
 export default function CompanionViewPage() {
+  const [pushOn, setPushOn] = useState(false)
   const [data, setData] = useState<ViewData | null>(null)
   const [state, setState] = useState<'loading' | 'ready' | 'unpaired' | 'revoked'>('loading')
   const [nudging, setNudging] = useState(false)
@@ -55,6 +57,23 @@ export default function CompanionViewPage() {
     const t = setInterval(() => { void load() }, 60_000)
     return () => clearInterval(t)
   }, [load])
+
+  // Offer push so the companion gets SOS alerts even with this page closed
+  useEffect(() => {
+    if (pushSupported()) {
+      readPushState().then((s) => setPushOn(s.subscribed)).catch(() => {})
+    }
+  }, [])
+
+  const enablePush = async () => {
+    try {
+      await subscribeToPush('Companion device')
+      setPushOn(true)
+      toast.success('Alerts enabled — you will be notified if SOS is activated')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not enable notifications')
+    }
+  }
 
   const nudge = async () => {
     setNudging(true)
@@ -140,6 +159,16 @@ export default function CompanionViewPage() {
       )}
 
       {/* check-in freshness — the core "are they OK" signal */}
+      {!pushOn && (
+        <section className="flex items-center justify-between gap-3 rounded-2xl border border-dashed p-4">
+          <div className="flex items-center gap-2.5 text-sm">
+            <Bell className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <span>Get an instant alert if {data.user.name.split(' ')[0]} triggers SOS — even with this page closed.</span>
+          </div>
+          <Button size="sm" variant="outline" className="shrink-0" onClick={enablePush}>Enable</Button>
+        </section>
+      )}
+
       <section className="rounded-2xl border p-5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

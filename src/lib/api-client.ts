@@ -318,4 +318,110 @@ export function useProviders() {
   })
 }
 
+// ---------- briefing / memory / push ----------
+
+export interface BriefingSection {
+  icon: 'score' | 'bp' | 'glucose' | 'meds' | 'streak' | 'warning' | 'focus'
+  label: string
+  text: string
+}
+
+export interface BriefingResponse {
+  briefing: { headline: string; sections: BriefingSection[]; spoken: string; focusAction: string | null }
+  date: string
+  deliveredToday: boolean
+  config: { enabled: boolean; time: string; push: boolean }
+}
+
+export function useBriefing() {
+  return useQuery<BriefingResponse>({
+    queryKey: ['briefing'],
+    queryFn: () => j('/api/briefing'),
+  })
+}
+
+export function useDeliverBriefing() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => j<{ briefing: BriefingResponse['briefing']; push: { sent: number } | null }>('/api/briefing', { method: 'POST', body: JSON.stringify({ push: true }) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing'] }); toast.success('Briefing delivered — check your notifications') },
+    onError: (e: Error) => toast.error(e.message),
+  })
+}
+
+export function useBriefingConfig() {
+  const qc = useQueryClient()
+  const query = useQuery({
+    queryKey: ['briefing-config'],
+    queryFn: () => j<{ enabled: boolean; time: string; push: boolean }>('/api/briefing/config'),
+  })
+  const save = useMutation({
+    mutationFn: (config: { enabled: boolean; time: string; push: boolean }) =>
+      j('/api/briefing/config', { method: 'PUT', body: JSON.stringify(config) }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing-config'] }); qc.invalidateQueries({ queryKey: ['briefing'] }); toast.success('Briefing schedule saved') },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { query, save }
+}
+
+export interface MemoryRow {
+  id: string; tier: string; kind: string; content: string; pinned: boolean
+  importance: number; accessCount: number; lastAccessedAt: string | null
+  expiresAt: string | null; createdAt: string
+}
+
+export function useMemories() {
+  return useQuery({
+    queryKey: ['memory'],
+    queryFn: () => j<{
+      memories: MemoryRow[]
+      counts: { core: number; semantic: number; episodic: number }
+      lastReflection: string | null
+      config: { autoReflect: boolean }
+    }>('/api/memory'),
+  })
+}
+
+export function useMemoryMutations() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ['memory'] })
+  const add = useMutation({
+    mutationFn: (input: { content: string; kind?: string; pinned?: boolean }) =>
+      j('/api/memory', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: () => { refresh(); toast.success('Remembered') },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const togglePin = useMutation({
+    mutationFn: (input: { id: string; pinned: boolean }) =>
+      j('/api/memory', { method: 'PATCH', body: JSON.stringify(input) }),
+    onSuccess: () => refresh(),
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => j(`/api/memory?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: () => { refresh(); toast.success('Forgotten') },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const setAutoReflect = useMutation({
+    mutationFn: (autoReflect: boolean) =>
+      j('/api/memory', { method: 'PATCH', body: JSON.stringify({ autoReflect }) }),
+    onSuccess: () => refresh(),
+    onError: (e: Error) => toast.error(e.message),
+  })
+  const reflect = useMutation({
+    mutationFn: (force: boolean) =>
+      j<{ created: boolean; content: string; aiNarrated: boolean; observation: string | null }>(`/api/memory/reflect${force ? '?force=1' : ''}`, { method: 'POST' }),
+    onSuccess: () => { refresh(); toast.success('Reflection written') },
+    onError: (e: Error) => toast.error(e.message),
+  })
+  return { add, togglePin, remove, setAutoReflect, reflect }
+}
+
+export function usePushDevices() {
+  return useQuery({
+    queryKey: ['push'],
+    queryFn: () => j<{ publicKey: string; count: number; devices: { id: string; label: string; createdAt: string; lastSuccessAt: string | null; lastErrorAt: string | null; lastError: string | null }[] }>('/api/push'),
+  })
+}
+
 export { queueLength }

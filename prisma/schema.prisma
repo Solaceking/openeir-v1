@@ -260,6 +260,42 @@ model CompanionLink {
   @@index([status])
 }
 
+/// Web Push subscription for outbound notifications (SOS, companion nudge, briefing)
+model PushSubscription {
+  id            String    @id @default(cuid())
+  endpoint      String    @unique
+  p256dh        String // client public key (base64url)
+  auth          String // auth secret (base64url)
+  label         String    @default("This device")
+  userAgent     String?
+  createdAt     DateTime  @default(now())
+  lastSuccessAt DateTime?
+  lastErrorAt   DateTime?
+  lastError     String?
+}
+
+/// Three-tier long-term memory for Eir (core = pinned, semantic = durable facts,
+/// episodic = decaying day-notes). Written by deterministic extractors + optional
+/// AI extraction + the nightly reflection.
+model MemoryEntry {
+  id             String    @id @default(cuid())
+  tier           String    @default("episodic") // core | semantic | episodic
+  content        String // third-person, self-contained ("User prefers morning walks")
+  kind           String    @default("fact") // fact | preference | person | plan | health | reflection
+  importance     Float     @default(0.5) // 0..1 — drives ordering, promotion and decay
+  pinned         Boolean   @default(false) // core tier: never decays
+  sourceMsgId    String? // provenance: chat message that produced it
+  dedupeKey      String? // normalized key for duplicate suppression
+  accessCount    Int       @default(0)
+  lastAccessedAt DateTime?
+  expiresAt      DateTime? // episodic decay horizon
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([tier])
+  @@index([dedupeKey])
+}
+
 /// One emergency activation — the full audit trail + dispatcher package
 model EmergencyEvent {
   id          String    @id @default(cuid())

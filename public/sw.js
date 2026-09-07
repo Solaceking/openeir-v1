@@ -4,7 +4,7 @@
    - API GETs: network-first with cache fallback (last-known data offline)
    - Navigations: cached shell, then network
    - POSTs are queued client-side (see src/lib/offline.ts) */
-const VERSION = 'openeir-v1'
+const VERSION = 'openeir-v2'
 const SHELL = ['/', '/manifest.webmanifest', '/offline.html']
 
 self.addEventListener('install', (event) => {
@@ -51,6 +51,47 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => (request.mode === 'navigate' ? caches.match('/offline.html') : undefined))
       return hit ?? fetching
+    })
+  )
+})
+
+// --- Web Push ---------------------------------------------------------------
+self.addEventListener('push', (event) => {
+  let data = {}
+  try {
+    data = event.data ? event.data.json() : {}
+  } catch {
+    data = { title: 'OpenEir', body: event.data ? event.data.text() : '' }
+  }
+  const title = data.title || 'OpenEir'
+  const options = {
+    body: data.body || '',
+    tag: data.tag || 'openeir',
+    renotify: true,
+    requireInteraction: data.kind === 'sos',
+    vibrate: data.kind === 'sos' ? [300, 120, 300, 120, 300] : [80],
+    data: { url: data.url || '/', kind: data.kind || 'info' },
+    badge: '/icons/icon-192.png',
+    icon: '/icons/icon-192.png',
+  }
+  event.waitUntil(self.registration.showNotification(title, options))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const target = (event.notification.data && event.notification.data.url) || '/'
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if ('focus' in client) {
+          client.focus()
+          if ('navigate' in client && client.url !== new URL(target, self.location.origin).href) {
+            try { client.navigate(target) } catch { /* best effort */ }
+          }
+          return
+        }
+      }
+      return self.clients.openWindow(target)
     })
   )
 })

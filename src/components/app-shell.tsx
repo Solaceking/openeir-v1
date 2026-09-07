@@ -22,6 +22,7 @@ import {
 } from 'lucide-react'
 import { useT } from '@/lib/i18n'
 import { OpenEirLogo } from '@/components/logo'
+import { AmbientScheduler } from '@/components/ambient-scheduler'
 
 const ICONS: Record<ViewKey, typeof LayoutDashboard> = {
   dashboard: LayoutDashboard,
@@ -154,6 +155,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
+      {/* Ambient scheduler: briefing delivery + nightly reflection triggers */}
+      <AmbientScheduler />
+
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/65">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-2 px-3 sm:px-6">
