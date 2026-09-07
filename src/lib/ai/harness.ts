@@ -126,6 +126,33 @@ export async function discoverClis(): Promise<DiscoveredCli[]> {
   return Promise.all(CLI_AGENTS.map(probe))
 }
 
+// ---- scan registry (Buzz-style) -------------------------------------------
+// Discovery is a registry scan: cheap, idempotent, timestamped, and never
+// disruptive to attached providers. GET reuses a fresh scan; the explicit
+// rescan (POST) forces a re-probe so a just-installed or just-logged-in CLI
+// shows up without restarting the server or reloading the page.
+
+interface ScanResult {
+  agents: DiscoveredCli[]
+  /** ISO timestamp of when this scan actually probed the machine */
+  scannedAt: string
+  /** true when served from the TTL cache instead of a fresh probe */
+  cached: boolean
+}
+
+const SCAN_TTL_MS = 60_000
+let scanCache: { at: number; agents: DiscoveredCli[] } | null = null
+
+export async function scanClis(force = false): Promise<ScanResult> {
+  const now = Date.now()
+  if (!force && scanCache && now - scanCache.at < SCAN_TTL_MS) {
+    return { agents: scanCache.agents, scannedAt: new Date(scanCache.at).toISOString(), cached: true }
+  }
+  const agents = await Promise.all(CLI_AGENTS.map(probe))
+  scanCache = { at: now, agents }
+  return { agents, scannedAt: new Date(now).toISOString(), cached: false }
+}
+
 const CLI_TIMEOUT_MS = 120_000
 const CLI_MAX_BUFFER = 2 * 1024 * 1024
 

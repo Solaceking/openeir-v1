@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### AI settings — harness rescan
+- **Rescan button** in Settings → AI → Agent harness: re-probes installed CLIs (`--version` + credential files) on demand, so installing a CLI or logging in mid-session shows up without a page reload — Buzz-style registry scan (explicit, timestamped, idempotent, never disrupts attached providers)
+- Scans cached 60s server-side (`GET /api/ai/agents` serves fresh-or-cached with `scannedAt`/`cached`; `POST` forces a re-probe); panel shows "Last scanned … ago" and toasts the diff ("New harness detected: Claude Code", "Login detected: Codex CLI", "no changes")
+
 ### Documentation
 - Complete documentation overhaul: new [GETTING_STARTED](docs/GETTING_STARTED.md), [AI_PROVIDERS](docs/AI_PROVIDERS.md), [VOICE_AND_TALK](docs/VOICE_AND_TALK.md), [SAFETY](docs/SAFETY.md), [MEMORY_AND_BRIEFING](docs/MEMORY_AND_BRIEFING.md) guides; full rewrite of README, API reference (all 45 endpoints), Architecture, Deployment (with one-click platform recipes), Roadmap, FAQ and Security
 

@@ -101,7 +101,7 @@ Already paying for ChatGPT Plus, Claude Pro, Google AI or OpenCode? Their subscr
 | Gemini CLI | `gemini -p "<prompt>"` |
 | OpenCode | `opencode run "<prompt>"` |
 
-- **Discovery**: Settings → AI → *Agent CLIs* panel runs `--version` probes and credential-file checks, showing what's installed and logged-in.
+- **Discovery**: Settings → AI → *Agent harness* panel. OpenEir probes each CLI (`--version`, plus a best-effort credential-file check) and shows what's installed, logged-in, and attachable. Scans are **cached for 60s** and timestamped; press **Rescan** after installing a CLI or logging in — it re-probes immediately (Buzz-style: explicit, cheap, timestamped, never disruptive to attached providers) and toasts what changed ("New harness detected: Claude Code", "Login detected: Codex CLI", or "no changes").
 - **Attach**: one click turns a detected CLI into a chain provider (adapter `cli`).
 - **Limits**: CLI providers are text-only — vision requests (photo OCR) fail fast and the chain falls through to the next provider.
 - **Z.ai bridge recipe**: a copy-paste env block (`ANTHROPIC_BASE_URL=api.z.ai/api/anthropic` + coding-plan key) lets Claude Code authenticate with a Z.ai Coding Plan — the recipe is shown in-app with a copy button.

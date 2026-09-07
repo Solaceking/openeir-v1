@@ -136,7 +136,8 @@ Delivery notes: `404/410` endpoints are pruned automatically; other errors recor
 | `PATCH` / `DELETE` | `/api/ai/providers/:id` | |
 | `POST` | `/api/ai/providers/:id/test` | Real ping; reports latency and which chain member answered. |
 | `GET` | `/api/ai/models?preset=` | Live models.dev catalog slice: name, id, context, $/M in/out, release date, capability badges. 12h SQLite cache, stale-on-error. |
-| `GET` | `/api/ai/agents` | CLI harness discovery: installed CLIs (claude/codex/gemini/opencode), login state, attach recipes (incl. Z.ai bridge). |
+| `GET` | `/api/ai/agents` | CLI harness registry scan: installed CLIs (claude/codex/gemini/opencode), login state, attach recipes (incl. Z.ai bridge). Cached 60s; response carries `scannedAt` + `cached`. |
+| `POST` | `/api/ai/agents` | **Rescan** — bypasses the cache and re-probes the machine. Explicit, idempotent, never disrupts attached providers. |
 
 ## Agent harness (MCP-style, network-local)
 

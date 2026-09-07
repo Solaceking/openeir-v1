@@ -12,7 +12,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Loader2, Trash2, PlayCircle, Star, Pencil, ChevronsUpDown, Eye,
-  Terminal, Copy, KeyRound, Sparkles, CircleAlert, Cloud, Check,
+  Terminal, Copy, KeyRound, Sparkles, CircleAlert, Cloud, Check, RefreshCw,
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -330,17 +330,56 @@ function ProviderDialog({
 
 // ---------- agent harness panel ----------
 
+interface AgentsResponse {
+  agents: DiscoveredCli[]
+  zaiBridge: { title: string; lines: string[]; note: string }
+  scannedAt: string
+  cached: boolean
+}
+
+function ago(iso: string): string {
+  const s = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000))
+  if (s < 5) return 'just now'
+  if (s < 60) return `${s}s ago`
+  const m = Math.round(s / 60)
+  if (m < 60) return `${m}m ago`
+  return `${Math.round(m / 60)}h ago`
+}
+
 function HarnessPanel() {
   const qc = useQueryClient()
   const [recipeCopied, setRecipeCopied] = useState(false)
   const q = useQuery({
     queryKey: ['agent-clis'],
-    queryFn: async () => {
+    queryFn: async (): Promise<AgentsResponse> => {
       const res = await fetch('/api/ai/agents')
       if (!res.ok) throw new Error('discovery failed')
-      return (await res.json()) as { agents: DiscoveredCli[]; zaiBridge: { title: string; lines: string[]; note: string } }
+      return (await res.json()) as AgentsResponse
     },
     staleTime: 30 * 1000,
+  })
+
+  // Buzz-style registry rescan: explicit, timestamped, non-disruptive.
+  // Re-probes --version + credential files so a just-installed or
+  // just-logged-in CLI shows up without a page reload.
+  const scan = useMutation({
+    mutationFn: async (): Promise<AgentsResponse> => {
+      const res = await fetch('/api/ai/agents', { method: 'POST' })
+      if (!res.ok) throw new Error('Rescan failed — try again in a moment')
+      return (await res.json()) as AgentsResponse
+    },
+    onMutate: () => qc.getQueryData<AgentsResponse>(['agent-clis']),
+    onSuccess: (data, _vars, prev) => {
+      qc.setQueryData(['agent-clis'], data)
+      const before = prev?.agents ?? []
+      const newlyFound = data.agents.filter((a) => a.found && before.find((p) => p.id === a.id)?.found === false)
+      const nowAuthed = data.agents.filter((a) => a.found && a.authLikely === true && before.find((p) => p.id === a.id)?.authLikely === false)
+      if (newlyFound.length) toast.success(`New harness detected: ${newlyFound.map((a) => a.label).join(', ')} — ready to attach`)
+      else if (nowAuthed.length) toast.success(`Login detected: ${nowAuthed.map((a) => a.label).join(', ')} — ready to attach`)
+      else if (!data.agents.some((a) => a.found)) toast.info('No agent CLIs installed on this machine yet')
+      else toast.success(`Rescan complete — ${data.agents.filter((a) => a.found).length} of ${data.agents.length} harnesses, no changes`)
+    },
+    onError: (e: Error) => toast.error(e.message),
   })
 
   const attach = useMutation({
@@ -364,9 +403,16 @@ function HarnessPanel() {
   return (
     <Card>
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <Terminal className="h-4 w-4" aria-hidden /> Agent harness — use your subscriptions
-        </CardTitle>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+            <Terminal className="h-4 w-4" aria-hidden /> Agent harness — use your subscriptions
+          </CardTitle>
+          <Button size="sm" variant="ghost" className="h-7 gap-1.5 px-2 text-xs"
+            disabled={scan.isPending} onClick={() => scan.mutate()}>
+            <RefreshCw className={`h-3.5 w-3.5${scan.isPending ? ' animate-spin' : ''}`} aria-hidden />
+            {scan.isPending ? 'Scanning…' : 'Rescan'}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         <p className="text-xs leading-relaxed text-muted-foreground">
@@ -375,6 +421,12 @@ function HarnessPanel() {
           them, so your subscription is used exactly as the vendor intended. Log in once in your terminal, then attach
           the harness below.
         </p>
+        {scan.isPending && <p className="text-xs text-muted-foreground">Re-probing installed CLIs and credential files…</p>}
+        {!scan.isPending && q.data?.scannedAt && (
+          <p className="text-[11px] text-muted-foreground/80">
+            Last scanned {ago(q.data.scannedAt)}{q.data.cached ? ' · served from cache' : ''} — use Rescan after installing or logging into a CLI.
+          </p>
+        )}
         {q.isLoading && <p className="text-sm text-muted-foreground">Scanning for agent CLIs…</p>}
         {q.data?.agents.map((cli) => (
           <div key={cli.id} className="rounded-xl border p-3">
