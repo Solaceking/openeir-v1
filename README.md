@@ -76,10 +76,11 @@ cd openeir
 cp .env.example .env
 bun install
 bun run db:push
-bun run dev
+bun run build
+bash scripts/setup-local-services.sh        # systemd: app + backups (add --no-whisper to skip voice)
 ```
 
-Open <http://localhost:3000>, take the 60-second setup wizard (now with **map-searched GP** and **emergency contacts**), say hello in **Talk**. Done — the built-in AI works out of the box (see below for how), or connect your own provider in Settings → AI.
+Open <http://localhost:3000>, take the 60-second setup wizard (with **map-searched GP** and **emergency contacts**), then connect one AI provider in **Settings → AI providers** — Settings → **Data & backup** shows a plain-language System Check so you always know exactly what works. Optional local voice: stand up a whisper server (any OpenAI-compatible one, or see [docs/VOICE_AND_TALK.md](docs/VOICE_AND_TALK.md)) and point the STT routing at it.
 
 Optional: 75 days of realistic demo data for evaluation:
 
@@ -104,43 +105,21 @@ All state lives in the `openeir-data` volume. Back that up — it *is* your heal
 
 ---
 
-## The AI: built-in, or bring your own — both first-class
+## The AI: bring your own — every provider first-class
 
-### Where the built-in AI actually comes from
+OpenEir ships **no hidden AI**. Everything is configured by you, in the open, in Settings → AI providers:
 
-OpenEir ships with a **built-in provider**: a GLM model reached through the Z.ai gateway via `z-ai-web-dev-sdk`. It is **enabled automatically when credentials exist** — and on a fresh clone, OpenEir now *auto-seeds* the provider row and tells you exactly what's missing instead of failing silently.
+- **16 curated presets** — OpenRouter, OpenAI, Anthropic, Google Gemini, Z.ai (GLM), xAI, DeepSeek, Moonshot, NVIDIA NIM, Groq, Mistral, LM Studio, Ollama, custom/self-hosted. One key each, honestly labeled.
+- **A live model catalog** powered by [models.dev](https://models.dev) — real models with context window and $/M pricing, cached 12h. Never hardcoded.
+- **A fallback chain** — lowest priority number answers first; every call records latency and status.
+- **Subscription auth via CLI harness** — ChatGPT Plus / Claude Pro / Google / OpenCode and 6 more: OpenEir detects installed CLIs on an expanded PATH, shows login recipes and copy-install buttons, and attaches them as providers.
+- **Privacy mode** per provider strips PII before anything leaves the box. Keys are AES-256-GCM encrypted at rest.
 
-The SDK finds its gateway credentials in a `.z-ai-config` JSON file (`{"baseUrl": "…", "apiKey": "…"}`), scanned in this order:
-
-1. `./.z-ai-config` — project root
-2. `~/.z-ai-config` — your home directory
-3. `/etc/.z-ai-config` — provisioned automatically inside managed environments
-
-On a self-hosted clone none of those exist yet — that's expected, and the app now handles it gracefully. Either:
-
-- add a `.z-ai-config` file with your gateway `baseUrl` + `apiKey`, **or**
-- set `ZAI_API_KEY` and `ZAI_BASE_URL` env vars (OpenEir bootstraps the config file from them at first use, permissions `600`), **or**
-- skip the built-in provider entirely and connect any provider below — Settings → AI shows exactly which config source (if any) the gateway found, with a green strip when configured and an amber setup guide when not.
-
-If no provider is configured at all, Talk replies with an honest banner naming the exact config paths and a **Connect an AI provider** deep-link — never a silent failure.
-
-### The provider system: 16 presets, a live model catalog, and subscriptions
-
-Settings → **AI providers** gives you:
-
-- **16 curated presets** — OpenRouter, OpenAI, Anthropic, Google Gemini, Z.ai (GLM), Z.ai Coding Plan, xAI, DeepSeek, Moonshot, NVIDIA NIM, Groq, Mistral, LM Studio, Ollama, custom/self-hosted, and the built-in.
-- **A live, always-current model catalog** powered by [models.dev](https://models.dev) — every preset's model dropdown lists real models with context window, $/M pricing, and release date, newest first. Cached 12h, served stale on network errors. Never hardcoded, never aged.
-- **A fallback chain** — lowest priority number answers first; failures cascade; every call records latency, tokens and estimated cost.
-- **Subscription auth via CLI harness** — use your existing ChatGPT Plus / Claude Pro / Google / OpenCode subscriptions: OpenEir detects installed CLIs (`claude`, `codex`, `gemini`, `opencode`), shows login recipes, and attaches them as providers. Z.ai Coding Plan keys bridge through the documented recipe.
-- **Privacy mode** per provider strips PII before anything leaves the box. Keys are AES-256-GCM encrypted at rest. AI autonomy is a dial — *off / gentle / proactive*.
+If no provider is configured, Talk says so honestly and deep-links you to Settings — never a silent failure, never a hidden gateway.
 
 ### Talking to Eir out loud (Talk → live voice)
 
-Voice runs on open web APIs plus your own server: **speech-to-text** is the browser's Web Speech API (Chrome, Edge, Safari; Firefox gets the typed composer with spoken replies), **text-to-speech** is server-side Edge neural voices synthesized *inside* your instance — no keys, no cloud account, cached on disk. The live session opens with a spoken greeting (so you instantly know audio works), Eir replies sentence-by-sentence while typing them on screen, and you can **interrupt her mid-sentence** — she stops and listens. If she ever hits an error she says so, and the composer is always there.
-
-Full details, browser matrix and troubleshooting: [docs/VOICE_AND_TALK.md](docs/VOICE_AND_TALK.md).
-
----
+Voice input runs on whichever **speech recognition** you pick in Settings → Voice & audio: the browser's Web Speech API (stays on-device, Chrome/Edge/Safari) or **your own server** — any OpenAI-compatible transcription endpoint, e.g. a self-hosted [faster-whisper](https://github.com/SYSTRAN/faster-whisper) server (`large-v3` transcribes on a modest box). Replies use server-side Edge neural voices synthesized inside your instance — no keys, no cloud account. Full details: [docs/VOICE_AND_TALK.md](docs/VOICE_AND_TALK.md).
 
 ## Safety, companion, memory, briefing — the ambient layer
 
@@ -179,7 +158,7 @@ Next.js API routes (zod-validated)  ──►  Event bus (persisted EventRecords
    │                              AI Orchestrator ──► Rule engine (free, instant)
    │                                        │
    │                                        ▼
-   │                    Provider chain (built-in GLM · 16 presets · CLI harness · local)
+   │                    Provider chain (16 presets · CLI harness · local whisper)
    │
    ├── socket.io (ambient insight push) ◄── realtime mini-service
    ├── web-push (VAPID) ──► every subscribed device (SOS · nudge · briefing)
@@ -197,7 +176,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full map and [docs/API.
 | Doc | Contents |
 |---|---|
 | [Getting started](docs/GETTING_STARTED.md) | Clone → wizard → first reading → Talk → voice → pairing, step by step |
-| [AI providers](docs/AI_PROVIDERS.md) | Built-in model deep dive, all presets, live catalog, CLI subscriptions, privacy |
+| [AI providers](docs/AI_PROVIDERS.md) | All presets, live catalog, CLI subscriptions, privacy |
 | [Voice & Talk](docs/VOICE_AND_TALK.md) | Conversation thread, live voice, orb, barge-in, STT/TTS engines, troubleshooting |
 | [Safety & companion](docs/SAFETY.md) | SOS engine, dispatcher card, contacts, GP, pairing, emergency numbers |
 | [Memory & briefing](docs/MEMORY_AND_BRIEFING.md) | Three-tier memory, nightly reflection, Morning Briefing, web push |
