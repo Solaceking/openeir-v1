@@ -87,8 +87,8 @@ Open **Talk**. This is a persistent, WhatsApp-grade thread — day separators, d
 
 OpenEir never fails silently. If no AI provider is reachable you get an honest banner that names the exact problem and a **Connect an AI provider** button that deep-links into Settings → AI. Two fixes, in order of effort:
 
-1. **Built-in model (zero keys needed in managed environments)** — see [AI_PROVIDERS.md → The built-in model](AI_PROVIDERS.md). On typical self-hosted machines the built-in gateway needs credentials that managed environments provide automatically; if you don't have them, use option 2.
-2. **Any provider, ~3 clicks** — Settings → AI → *Add provider* → pick a preset (OpenRouter is the most flexible; Ollama if you want 100% local) → paste key → pick a model from the **live catalog** → done. The fallback chain tries providers in priority order automatically.
+1. **Connect any provider** (Settings → AI providers) — OpenRouter/OpenAI/Anthropic/Z.ai/Groq presets with one key, **Ollama** for fully-offline, or a CLI harness riding your existing subscription (Claude Pro, ChatGPT Plus, …). OpenEir ships no hidden AI, so this is the one required step. Details: [AI_PROVIDERS.md](AI_PROVIDERS.md).
+2. **Verify in one glance** — Settings → Data & backup → **System check** gives a plain-language verdict (database / AI brain / voice input / backups). If voice needs a backend, Settings → Voice & audio → Transcription order points it at local Whisper or your gateway.
 
 ---
 

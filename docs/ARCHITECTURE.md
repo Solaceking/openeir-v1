@@ -77,7 +77,7 @@ Events are **persisted first** (`EventRecord`), which gives audit trails and let
 1. **Rule engine** — deterministic, zero-cost, instant. Categorization, celebrations, warnings (`src/lib/health/warnings.ts`). This alone powers a fully functional experience with AI autonomy set to *off*.
 2. **Gates** — quiet hours, autonomy level (`off/gentle/proactive`), 6-hour title de-duplication.
 3. **Context builder** — profile, targets, 7/30/60-day windows, adherence, correlations, sleep→BP pairing, Eir Score, recent insights — plus the **memory block** (pinned core + relevant semantic/episodic entries).
-4. **Provider chain** — ascending priority: built-in GLM → presets (OpenRouter, OpenAI, Anthropic, Gemini, Groq, …) → CLI harness (subscription auth) → local (Ollama, LM Studio, vLLM). Every attempt records usage/latency/status; failures cascade with named errors.
+4. **Provider chain** — ascending priority: API presets (OpenRouter, OpenAI, Anthropic, Gemini, Groq, …) → CLI harness (subscription auth) → local (Ollama, LM Studio, vLLM). Nothing pre-seeded; every attempt records usage/latency/status; failures cascade with named errors. Every attempt records usage/latency/status; failures cascade with named errors.
 5. **Presentation** — insight cards (severity, kind, body, payload) + realtime toast + optional web push.
 
 ## The conversation stack

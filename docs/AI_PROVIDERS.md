@@ -1,59 +1,23 @@
 # AI providers — the complete guide
 
-OpenEir's AI layer is provider-agnostic by architecture and *honest by default*: every failure names itself, every call is measured, and the built-in model either works or tells you exactly why it can't. This document explains every way an OpenEir instance can think.
+OpenEir's AI layer is provider-agnostic by architecture and *honest by default*: every failure names itself, every call is measured, and there is no hidden credential anywhere. This document explains every way an OpenEir instance can think.
 
 ---
 
-## 1. The built-in model — how it works, honestly
+## 1. No hidden AI — bring your own, honestly
 
-### The short answer
+OpenEir ships **no built-in AI provider and no hidden gateway credentials**. Nothing pre-seeds itself, nothing phones home, and no key exists that you didn't set. A fresh instance starts with an *empty provider chain*, and Talk says so honestly with a deep-link to Settings → **AI providers**.
 
-The built-in provider talks to a **GLM model through the Z.ai gateway** using the server-side `z-ai-web-dev-sdk`. "Built-in" means *built into the app* — not a free anonymous cloud. It requires gateway credentials, and **where those credentials come from depends on where you run OpenEir**:
+**To make Eir think, connect exactly one provider** (you can add more later — the chain answers by priority):
 
-| Environment | What you get |
-|---|---|
-| **Managed / provisioned environments** (containers provisioned with `/etc/.z-ai-config`) | Works **truly out of the box**. Zero keys, zero clicks — first reply in ~1s. |
-| **Your own server / laptop (fresh clone)** | The app **auto-seeds** the built-in provider row, detects no config, and shows an amber setup guide in Settings → AI. Add config (below) → works. Or connect any other provider. |
-| **Docker** | Same as your own server — mount or env-in the credentials if you have them, or use any provider preset. |
+1. Open Settings → **AI providers** → *Connect a provider*
+2. Pick a preset (OpenRouter, OpenAI, Anthropic, Google Gemini, Z.ai, xAI, DeepSeek, Groq, Mistral, LM Studio, **Ollama** for fully-offline, custom/self-hosted…)
+3. Paste the API key — it is encrypted (AES-256-GCM) before it touches the database
+4. Pick a model from the live catalog and hit **Test**
 
-### The credential scan (exact behavior)
+Prefer your subscription over API keys? Use the **Agent harness** panel on the same page: OpenEir detects installed CLIs (Claude Code, Codex, Gemini CLI, OpenCode, Hermes Agent, OpenClaw, DeepSeek Harness, CLine, Cursor, Grok) on an expanded PATH, shows login recipes with copy-install buttons, and attaches them as providers — the subscription is used exactly as the vendor intended.
 
-The SDK looks for a `.z-ai-config` JSON file — `{"baseUrl": "…", "apiKey": "…"}` — in this order:
-
-1. `./.z-ai-config` — the project root (where `package.json` lives)
-2. `~/.z-ai-config` — the home directory of the user running the server
-3. `/etc/.z-ai-config` — the system path used by managed provisioning
-
-On top of that, OpenEir itself adds an **env bootstrap**: if `ZAI_API_KEY` and `ZAI_BASE_URL` are both set in the environment, OpenEir *writes* a `.z-ai-config` (mode `600`) from them on first use. So the full config precedence is:
-
-```
-ZAI_API_KEY + ZAI_BASE_URL env  →  bootstraps ./.z-ai-config
-          ↓ (if no env)
-existing .z-ai-config file      →  project root, then ~, then /etc
-          ↓ (if no file)
-built-in provider marked "not configured" — Settings shows the amber guide,
-Talk replies with an honest banner instead of a silent failure
-```
-
-### The auto-seed (new behavior — this is the "out of the box" fix)
-
-Older builds only created the built-in provider row via the seed script, so a fresh clone had *no provider at all* and Talk failed with an opaque 502. Current behavior:
-
-- The first time any AI feature runs with an **empty provider chain**, OpenEir calls `ensureBuiltinProvider()` (30s TTL memo) which:
-  1. Creates the `builtin` provider row (adapter `builtin_zai`, priority 1).
-  2. Marks it **enabled** if gateway config was found, **disabled with guidance** if not.
-- A gateway configuration error from the SDK is translated into a human sentence that names the exact paths checked (`./.z-ai-config`, `~/.z-ai-config`, `/etc/.z-ai-config`) and the Settings deep-link.
-- Settings → **AI providers** shows a status strip: **green** with the config origin when configured, **amber** with a step-by-step guide when not, and the preset badge honestly reads *gateway key* rather than *no setup*.
-
-### Changing the built-in model
-
-The built-in provider is not locked to one model. Settings → AI → ✏️ edit → set *any* model id the gateway supports. The `Z.ai` preset gives you the same gateway with your own key if you prefer explicit ownership.
-
-### Do users truly need to connect a provider to start?
-
-**In managed/provisioned environments: no.** **On your own hardware: you need one of (a) gateway credentials for the built-in, or (b) any provider from §2 — one of which can be a fully local Ollama with no cloud at all.** What you never get is a silent failure: every path either works or tells you precisely what to do.
-
----
+If every provider in the chain fails, Talk tells you which ones were attempted and why — never a silent failure.
 
 ## 2. The 16 provider presets
 
@@ -127,11 +91,9 @@ Already paying for ChatGPT Plus, Claude Pro, Google AI or OpenCode? Their subscr
 
 | Symptom | Cause → fix |
 |---|---|
-| Talk banner: "no AI provider configured" | Fresh clone without config → Settings → AI, follow the amber guide, or add any preset |
-| Banner names `.z-ai-config` paths | Built-in selected but gateway config missing → create the file/env (§1) or switch provider |
+| Talk banner: "no AI provider configured" | Fresh clone → Settings → AI, connect any preset (Ollama = fully offline) or attach a CLI harness |
 | Vision (photo OCR) skips my provider | CLI adapters are text-only → put an API/local provider with vision above it in the chain |
 | Model dropdown empty | models.dev fetch failed and no cache yet → check server egress; dropdown works again on next fetch |
-| "Configuration file not found" in error detail | SDK ran without any of the three config paths → see §1 precedence |
 | Provider test fails but chat works | Chain answered with a *different* (higher-priority) provider — the test result names it |
 
 See also [FAQ.md](FAQ.md) and [API.md → Providers](API.md).

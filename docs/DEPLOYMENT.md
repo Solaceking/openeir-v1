@@ -40,7 +40,6 @@ docker compose --profile core --profile ai --profile agent up -d
 | `DATABASE_URL` | `file:/app/db/custom.db` (image sets it) | SQLite path |
 | `APP_KEY` | auto-generated into the volume | Master key for provider-key encryption. If you set one, back it up with the DB. |
 | `OPENEIR_PORT` | `3000` | Host port |
-| `ZAI_API_KEY` + `ZAI_BASE_URL` | — | Optional: bootstraps the built-in provider's gateway config |
 | `REALTIME_URL` | `http://realtime:3031` | Internal control channel |
 | `NEXT_TELEMETRY_DISABLED` | `1` | — |
 

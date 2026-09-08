@@ -29,7 +29,6 @@ You will get an acknowledgment within 48 hours and a fix timeline within a week.
 | Secret | Storage | Notes |
 |---|---|---|
 | AI provider API keys | AES-256-GCM (`db/.appkey` or `APP_KEY` env) | Write-only through the API; never returned to clients |
-| `.z-ai-config` (built-in gateway) | Plain file, mode `600` (env bootstrap writes it) | Single environment secret — keep the file out of backups you don't trust |
 | Companion invite tokens | **sha256 hash** only | Single-use, burned on acceptance; plaintext shown exactly once |
 | Companion viewer tokens | **sha256 hash** only | Long-lived; revocation deletes the hash → instant 403 |
 | SOS share tokens | `@unique`, per-event | Public card is noindex; token unguessable; resolve/cancel reflected on card |

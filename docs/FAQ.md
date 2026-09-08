@@ -7,7 +7,7 @@ Real troubleshooting first, philosophy second.
 ## Talk & live voice
 
 **Talk didn't work out of the box on my fresh clone — why?**
-The app never fails silently: you either saw a reply, or an honest banner naming the problem. The most likely cause: no AI provider configured. The built-in provider (GLM via Z.ai gateway) works with zero setup only where gateway credentials are provisioned (`/etc/.z-ai-config` in managed environments). On your own machine, either add that config file (or `ZAI_API_KEY` + `ZAI_BASE_URL` env vars — OpenEir bootstraps the file from them), or connect any provider in Settings → AI (Ollama = 100% local). Full explanation: [AI_PROVIDERS.md](AI_PROVIDERS.md).
+Because OpenEir ships **no hidden AI** — you connect a provider, and Talk is honest about it: an empty chain produces a banner with a Settings deep-link, never a silent failure. Open Settings → **AI providers** and connect any preset (Ollama = 100% local), or attach a CLI harness. **Settings → Data & backup → System check** tells you in plain language exactly what works and what doesn't. Full explanation: [AI_PROVIDERS.md](AI_PROVIDERS.md).
 
 **The AI talks but doesn't seem to know it can talk / hear.**
 Fixed in v1.1: the chat system prompt now states Eir's voice capabilities explicitly, and live-voice replies follow speak-for-the-ear rules (short sentences, no markdown). If you're on an old build, pull.
@@ -26,14 +26,20 @@ That's the browser `SpeechSynthesis` fallback — your server couldn't reach Mic
 
 ## AI & providers
 
-**Where does the built-in AI actually come from?**
-A GLM model through the Z.ai gateway via `z-ai-web-dev-sdk`, using credentials from `.z-ai-config` (project root → `~` → `/etc`) or the `ZAI_API_KEY`/`ZAI_BASE_URL` env bootstrap. It is *built into the app*, not a free anonymous cloud. Settings → AI shows exactly which config source was found. Full detail: [AI_PROVIDERS.md §1](AI_PROVIDERS.md).
+**Is there a built-in AI / hidden provider?**
+No. There is no pre-seeded provider, no hidden gateway config, no env-var backdoor. Every AI call goes through providers **you** configured — API presets, local Ollama, or CLI harnesses riding your existing subscriptions. Keys are AES-256-GCM encrypted at rest.
 
 **Do I need to connect a provider to start?**
-Where credentials are provisioned: no. Elsewhere: one of (a) gateway credentials for the built-in, or (b) any preset — including a fully local Ollama with no cloud. You'll never get a silent failure either way.
+Yes — exactly one. OpenEir never ships credentials, so a fresh instance starts with an empty chain and tells you so honestly. Ollama gives you a fully-offline brain in two minutes.
+
+**Voice input doesn't work in my browser but works elsewhere.**
+Voice has two paths: the **browser ear** (Web Speech — Chrome/Edge/Safari only, transcription in the browser) and the **server ear** (mic audio → your transcription backend). A failure that never appears in the server logs is the browser ear dying (mic permission, no Web Speech) — check Settings → Voice & audio and pick "My server" to force the server path. Server-ear problems DO appear in the server log as `[voice/stt]` lines.
+
+**Voice is very slow.**
+If your transcription order puts a local CPU-only Whisper first, expect minutes per utterance — that's physics, not a bug. Put the fast backend first (Settings → Voice & audio → Transcription order); keep the slow local one as fallback.
 
 **Can I use my ChatGPT Plus / Claude Pro subscription?**
-Yes — the CLI harness detects `claude`/`codex`/`gemini`/`opencode` and attaches them as providers (text-only). See [AI_PROVIDERS.md §4](AI_PROVIDERS.md).
+Yes — the CLI harness detects installed CLIs (claude, codex, gemini, opencode, hermes, openclaw, dsh, cline, cursor, grok) on an expanded PATH and attaches them as providers (text-only). Just-installed CLIs show copy-install commands; hit Rescan after logging in. See [AI_PROVIDERS.md §4](AI_PROVIDERS.md).
 
 **Model list feels stale?**
 It's fetched live from models.dev, cached 12h in your DB, served stale-on-error. Restarting the server triggers a refresh.
