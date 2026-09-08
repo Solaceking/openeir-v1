@@ -1,0 +1,7 @@
+[Unit]
+Description=OpenEir automatic database backup (health data)
+
+[Service]
+Type=oneshot
+User=david
+ExecStart=/home/david/openeir/scripts/backup-db.sh

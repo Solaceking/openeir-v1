@@ -5,9 +5,9 @@
 // briefing · Voice & audio · Appearance & language · Data & backup ·
 // Emergency & safety. No more eight-tab wall.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
-  User, Target, Bot, Palette, DatabaseBackup, Check, BellRing,
+  User, Target, Bot, Palette, DatabaseBackup, Check, BellRing, Loader2, Activity, CircleAlert,
   ArrowLeft, AudioLines, Siren, HeartPulse, UserCog, ChevronRight,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -315,19 +315,100 @@ function AppearanceLanguageSection() {
 // ---------------- Data & backup ----------------
 function DataSection() {
   return (
+    <div className="space-y-4">
+      <SystemCheckCard />
+      <Card>
+        <CardContent className="space-y-4 p-5">
+          <p className="text-sm text-muted-foreground">
+            Your data lives in a single SQLite file on your machine. Automatic snapshots run every 6 hours
+            (last 30 kept) — plus the manual backup here. No cloud, no accounts.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <a href="/api/export?format=json" download><Button variant="outline" className="gap-2"><DatabaseBackup className="h-4 w-4" aria-hidden />Download full backup (JSON)</Button></a>
+          </div>
+          <div className="rounded-lg border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
+            <b>Self-hosting tips:</b> mount <code>/app/db</code> as a Docker volume, snapshot it with your existing backup
+            job (it is safe to copy while the app is running — SQLite in WAL mode), and restore by replacing the file.
+            API keys are encrypted at rest with an instance key stored beside the database.
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ---------------- System Check (plain-language status) ----------------
+interface CheckRow { id: string; label: string; ok: boolean; detail: string }
+interface SystemCheckData { ok: boolean; summary: string; checks: CheckRow[]; checkedAt: string }
+
+function SystemCheckCard() {
+  const [data, setData] = useState<SystemCheckData | null>(null)
+  const [busy, setBusy] = useState<'check' | 'backup' | null>(null)
+  const [backupMsg, setBackupMsg] = useState<string | null>(null)
+
+  const run = async () => {
+    setBusy('check')
+    try {
+      const r = await fetch('/api/system-check', { signal: AbortSignal.timeout(90_000) })
+      if (r.ok) setData(await r.json())
+    } catch { /* keep previous state visible */ }
+    setBusy(null)
+  }
+  useEffect(() => { void run() }, [])
+
+  const backupNow = async () => {
+    setBusy('backup')
+    try {
+      const r = await fetch('/api/system-check', { method: 'POST' })
+      const d = await r.json() as { ok: boolean; error?: string }
+      setBackupMsg(d.ok ? 'Snapshot saved ✓' : `Backup failed: ${d.error ?? 'unknown'}`)
+    } catch { setBackupMsg('Backup failed — is the server running?') }
+    setBusy(null)
+    void run()
+  }
+
+  return (
     <Card>
-      <CardContent className="space-y-4 p-5">
-        <p className="text-sm text-muted-foreground">
-          Your data lives in a single SQLite file inside the container volume. Back it up like any file — no cloud, no accounts.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <a href="/api/export?format=json" download><Button variant="outline" className="gap-2"><DatabaseBackup className="h-4 w-4" aria-hidden />Download full backup (JSON)</Button></a>
-          <a href="/api/health"><Button variant="outline">System status</Button></a>
+      <CardContent className="space-y-3 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">System check</p>
+            <p className="text-xs text-muted-foreground">what Eir needs to work — in plain words</p>
+          </div>
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void run()} disabled={busy !== null}>
+            {busy === 'check' ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Activity className="h-3.5 w-3.5" aria-hidden />}
+            Check again
+          </Button>
         </div>
-        <div className="rounded-lg border bg-muted/30 p-3 text-xs leading-relaxed text-muted-foreground">
-          <b>Self-hosting tips:</b> mount <code>/app/db</code> as a Docker volume, snapshot it with your existing backup
-          job (it is safe to copy while the app is running — SQLite in WAL mode), and restore by replacing the file.
-          API keys are encrypted at rest with an instance key stored beside the database.
+
+        {!data && <p className="text-sm text-muted-foreground">Running the first check…</p>}
+        {data && (
+          <>
+            <p className={`text-sm font-medium ${data.ok ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+              {data.summary}
+            </p>
+            <div className="space-y-1.5">
+              {data.checks.map((c) => (
+                <div key={c.id} className="flex items-start gap-2.5 rounded-lg border border-border/60 px-3 py-2">
+                  {c.ok
+                    ? <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    : <CircleAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />}
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold">{c.label}</p>
+                    <p className="text-xs text-muted-foreground">{c.detail}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        <div className="flex items-center gap-2 border-t border-border/60 pt-3">
+          <Button size="sm" variant="outline" className="gap-1.5" onClick={() => void backupNow()} disabled={busy !== null}>
+            {busy === 'backup' ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <DatabaseBackup className="h-3.5 w-3.5" aria-hidden />}
+            Back up now
+          </Button>
+          {backupMsg && <span className="text-xs text-muted-foreground">{backupMsg}</span>}
         </div>
       </CardContent>
     </Card>
