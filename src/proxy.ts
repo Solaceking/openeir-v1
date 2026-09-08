@@ -27,6 +27,7 @@ const API_RULES: Rule[] = [
   { prefix: '/api/auth/login', role: 'public' },
   { prefix: '/api/auth/logout', role: 'public' },
   { prefix: '/api/health', role: 'public' }, // docker healthcheck
+  { prefix: '/api/system-check', methods: ['GET'], role: 'any' }, // signed-in status page
   { prefix: '/api/agent/', role: 'public' }, // LAN agent API (own trust model)
   { prefix: '/api/companion/view', role: 'public' }, // token-authenticated viewer
   { prefix: '/api/companion/accept', role: 'public' }, // token pairing
