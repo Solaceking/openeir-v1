@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v3.4 — 2026-09-09
 
 ### Worldclass shell — the application frame
 - **True app frame**: the sidebar is now a full-height flush rail (hairline border, no floating card) and the content column opens with its own top bar — the disjointed "box in a box" layout is gone
@@ -46,6 +46,11 @@
 
 ### Documentation
 - Complete documentation overhaul: new [GETTING_STARTED](docs/GETTING_STARTED.md), [AI_PROVIDERS](docs/AI_PROVIDERS.md), [VOICE_AND_TALK](docs/VOICE_AND_TALK.md), [SAFETY](docs/SAFETY.md), [MEMORY_AND_BRIEFING](docs/MEMORY_AND_BRIEFING.md) guides; full rewrite of README, API reference (all 45 endpoints), Architecture, Deployment (with one-click platform recipes), Roadmap, FAQ and Security
+
+### Release hygiene
+- Removed two SQLite backup files that were accidentally committed under `db/backups/` (they contained only test data — no readings, no keys) and extended `.gitignore` to cover `/db/backups/` so runtime database snapshots can never be tracked again
+- Fixed a `react-hooks/set-state-in-effect` lint error in the Settings System Check card (mount effect now fetches first with a cancellation guard)
+- Excluded the standalone `mini-services/realtime` service from root typechecking (it owns its dependencies, including socket.io)
 
 ## v1.1.0 — 2026-09-07
 
