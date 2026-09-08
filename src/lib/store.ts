@@ -60,11 +60,12 @@ export const useUI = create<UIState>()(
     }),
     {
       name: 'openeir-ui',
-      version: 1,
+      version: 2,
       // v0→v1: the standalone Voice view merged into Talk (voice + chat live together)
       migrate: (persisted) => {
         const p = persisted as Partial<UIState>
         if ((p.view as string) === 'voice' || p.view === undefined) p.view = 'talk'
+        p.sttEar = p.sttEar === 'webspeech' || p.sttEar === 'server' ? p.sttEar : 'auto'
         return p as UIState
       },
       // transient navigation state (settingsSection) never survives a reload
@@ -79,6 +80,7 @@ export const useUI = create<UIState>()(
         voiceRate: s.voiceRate,
         voiceEngine: s.voiceEngine,
         edgeVoice: s.edgeVoice,
+        sttEar: s.sttEar,
       }) as UIState,
     },
   ),
