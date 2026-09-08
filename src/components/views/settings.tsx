@@ -343,7 +343,9 @@ interface SystemCheckData { ok: boolean; summary: string; checks: CheckRow[]; ch
 
 function SystemCheckCard() {
   const [data, setData] = useState<SystemCheckData | null>(null)
-  const [busy, setBusy] = useState<'check' | 'backup' | null>(null)
+  // 'check' as the initial value: the mount effect below kicks off the first
+  // check without synchronously calling setState inside the effect body.
+  const [busy, setBusy] = useState<'check' | 'backup' | null>('check')
   const [backupMsg, setBackupMsg] = useState<string | null>(null)
 
   const run = async () => {
@@ -354,7 +356,21 @@ function SystemCheckCard() {
     } catch { /* keep previous state visible */ }
     setBusy(null)
   }
-  useEffect(() => { void run() }, [])
+  // Mount effect: fetch first, update state only after the await (the
+  // react-hooks/set-state-in-effect rule — and React 19 best practice —
+  // forbids synchronous setState in effects). `cancelled` guards against
+  // updates after unmount.
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const r = await fetch('/api/system-check', { signal: AbortSignal.timeout(90_000) })
+        if (r.ok && !cancelled) setData(await r.json())
+      } catch { /* keep previous state visible */ }
+      if (!cancelled) setBusy(null)
+    })()
+    return () => { cancelled = true }
+  }, [])
 
   const backupNow = async () => {
     setBusy('backup')

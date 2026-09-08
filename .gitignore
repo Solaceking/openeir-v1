@@ -60,3 +60,6 @@ tool-results/
 .tts-cache/
 .z-ai-config
 scripts/*.png
+
+# runtime database backups — never publish (health data!)
+/db/backups/
