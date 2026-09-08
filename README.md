@@ -4,9 +4,9 @@
 
 # OpenEir
 
-**Your health, understood. Talk to it. Trust it with your mornings.**
+**Your health, understood.**
 
-Self-hosted AI medical assistant — a conversational companion you can *speak with out loud*, a safety net that calls for help, a memory that never forgets what matters to you, and an open agent harness for your own AI agents. Your data, your models, your rules.
+A self-hosted AI health companion: log blood pressure, glucose and meds by typing or talking; get plain-language insights grounded in your actual numbers; share a read-only view with someone you trust. Runs entirely on your own hardware against one SQLite file — your data stays yours.
 
 `Apache-2.0` · `Next.js 16` · `React 19` · `SQLite` · `Docker` · `PWA`
 
@@ -18,15 +18,13 @@ Self-hosted AI medical assistant — a conversational companion you can *speak w
 
 ## Why OpenEir
 
-Most health tools are either dumb notebooks (they store numbers and draw lines) or black-box chatbots (they hallucinate advice and ship your data to a cloud). OpenEir is a third thing: an **AI medical assistant built like a nervous system** — and since v1.1, one you can actually *talk to*.
-
-Every reading, dose, meal and sleep entry emits events. A rule engine evaluates them instantly, free and deterministic. An orchestrator decides when deeper attention is needed, and **Eir** — the ambient AI layer — responds with insight cards that cite *your actual numbers*, never generic advice. You can type to her in a WhatsApp-grade thread, **press one button and speak with her out loud** (she speaks back in a studio-quality neural voice, and she knows she can). If you fall or feel wrong, a **held SOS** builds a dispatcher-ready emergency package in seconds. A **trusted person** can pair to your instance and watch over you remotely. Every morning, Eir gives you a **briefing** — spoken if you like. And she **remembers** what you tell her, in three tiers, forever or for as long as it matters.
+Most health tools are either dumb notebooks (they store numbers and draw lines) or black-box chatbots (they hallucinate advice and ship your data to a cloud). OpenEir is a third thing: a **conversational health assistant** that knows your numbers. Readings, doses and lifestyle entries flow through a deterministic rule engine (instant, free) with an AI layer on top for the conversations. You can type to Eir in a persistent thread or speak with her out loud; she replies grounded in your real data, never generic advice. There's an SOS flow, an optional companion view for someone you trust, a morning briefing, and a memory of what you tell her — all inspectable, all local.
 
 It runs entirely on your own hardware, in your own home, on a single SQLite file you can back up like a photo album.
 
 ---
 
-## The complete feature map
+## What's inside
 
 | Domain | What you get |
 |---|---|
@@ -34,24 +32,24 @@ It runs entirely on your own hardware, in your own home, on a single SQLite file
 | 🍬 **Glucose** | Context-aware ranges (fasting / pre-meal / post-meal / bedtime), time-in-range, estimated HbA1c |
 | 💊 **Medications** | Schedules, adherence streaks, inventory with refill prediction, missed-dose recovery, interaction education |
 | 🥗 **Lifestyle** | Mood, energy, sleep, stress, weight, sodium — correlated against vitals |
-| 🗣️ **Talk** | A persistent, WhatsApp-grade conversation thread. Eir has your *full* health context — she can log readings and meds from plain chat ("BP 118 over 76, pulse 64" → confirm card → saved) |
-| 🎙️ **Live voice** | One tap → full-duplex voice session: WebGL voice orb, neural TTS replies, barge-in interruption, sentence-by-sentence streaming speech. Eir *knows* she can speak and hear |
-| 🎛️ **Voice capture** | "Blood pressure one twenty over seventy-six" → on-device deterministic parser → spoken readback → confirm. Works for meds and notes too |
-| 🚨 **SOS & safety** | Hold-to-trigger SOS → location + nearest emergency department + country-correct emergency number + plus-code → dispatcher card (shareable link) → all contacts notified → full audit trail |
+| 🗣️ **Talk** | A persistent chat thread with your health context — log readings and meds from plain chat ("BP 118 over 76, pulse 64" → confirm card → saved) |
+| 🎙️ **Live voice** | One tap → voice session: speak, get spoken replies sentence-by-sentence; barge-in works best with headphones |
+| 🎛️ **Voice capture** | "Blood pressure one twenty over seventy-six" → parsed readback → confirm. Meds and notes too |
+| 🚨 **SOS & safety** | Hold-to-trigger SOS → a shareable card with your conditions, meds, GP and location → contacts notified. Not a medical device — it calls *humans* |
 | 👥 **Companion** | Pair a trusted person with a one-time invite. They get a scoped live dashboard (status, meds, vitals), can nudge you, and are auto-added to emergency contacts. Consent-based, revocable, audit-logged |
-| 🌅 **Morning Briefing** | Every morning: score badge, BP vs target with trend, glucose + eA1c, adherence streak, today's doses, one honest focus for the day. Readable *and* speakable |
-| 🧠 **Memory** | Three tiers — pinned core facts, durable semantic knowledge, decaying episodic notes. Eir recalls your name, your daughter's, your allergies, your plans — across every conversation |
+| 🌅 **Morning Briefing** | Daily summary from your real data — score, vitals vs target, meds due, one focus. Readable and speakable |
+| 🧠 **Memory** | Eir remembers key facts you tell her (pinned), with older notes fading — visible and editable in Settings |
 | 🌙 **Nightly reflection** | While you sleep, Eir reflects on the day — chat, readings, doses — and writes it into long-term memory; missed doses and spiking BP become morning insights |
-| 🔔 **Web Push** | Real outbound notifications (VAPID auto-provisioned, zero config): SOS alerts, companion nudges, briefing delivery — to every device you've subscribed |
-| 📷 **Photo scan (OCR)** | Photograph a BP monitor or glucometer — vision model through your provider chain, offline OCR fallback, deterministic parser as the floor. You always confirm |
-| 🫁 **Bluetooth devices** | Web Bluetooth GATT for BP monitors (0x1810) and glucometers (0x1808) with proper SFLOAT parsing |
-| 📖 **Blood Pressure Story** | Weekly AI narrative of your week in plain language — what drove highs, what to watch |
-| 🧪 **What-If Simulator** | "Lose 5 kg, adopt DASH, +2 exercise days" → deterministic projections from published effect sizes + AI interpretation |
-| 📊 **Eir Score** | One honest 0–100 composite (BP control, glucose TIR, adherence, wellbeing, consistency), fully explainable with a radar breakdown |
+| 🔔 **Web Push** | Outbound notifications to your subscribed devices (SOS alerts, nudges, briefing) — VAPID keys generated on first use |
+| 📷 **Photo scan (OCR)** | Best-effort: works with clear photos and vision-capable providers; always confirm before saving |
+| 🫁 **Bluetooth devices** | Early feature — Web Bluetooth pairing for some BP monitors; Chrome/Edge only, device support varies |
+| 📖 **Blood Pressure Story** | Weekly AI narrative of your week in plain language |
+| 🧪 **What-If Simulator** | Simple projections ("lose 5 kg, +2 exercise days") from published effect sizes, with AI interpretation |
+| 📊 **Eir Score** | A 0–100 composite (BP control, glucose TIR, adherence, wellbeing, consistency) with a radar breakdown of the parts |
 | 🩺 **Doctor reports** | Print-ready A4 clinical narrative, suggested questions, CSV/JSON export of everything |
-| 🤖 **Agent harness** | MCP-style manifest, event polling, insight push — your agents join the medical team |
+| 🤖 **Agent harness** | HTTP API for your own agents (manifest, polling, insight push) |
 | 🌐 **PWA** | Installable, offline capture with automatic sync, background shell caching, push notifications |
-| ♿ **Accessibility** | WCAG 2.1 AA target: high-contrast, large-text and simple modes, 44px+ touch targets, visible focus, screen-reader labels |
+| ♿ **Accessibility** | High-contrast, large-text and simple modes, 44px+ touch targets, screen-reader labels |
 
 Community contributions decide what ships next — see [docs/ROADMAP.md](docs/ROADMAP.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -202,9 +200,7 @@ We want this to be the best open-source AI medical assistant, which means we nee
 
 ## Support OpenEir ☕
 
-OpenEir is built by **one person** — a solo developer who is, themselves, both a patient and a carer. This software was born at a kitchen table between appointments and medication schedules, because the assistant our family needed didn't exist: something that talks kindly, remembers what matters, and calls the right person when it counts. If you are caring for yourself and for someone you love, you already know the weight a tool like this lifts — you are why it exists.
-
-If OpenEir has made your days lighter, please consider buying the developer a coffee. It keeps the docs detailed, the roadmap honest, and the next features coming — offline voice, more device adapters, missed-check-in escalation, and the companion features still ahead. And if money is tight — carer budgets are real, we know — sharing OpenEir with a community, writing about your setup, or contributing a translation helps every bit as much.
+OpenEir is built by **one person** — a solo developer who is both a patient and a carer. It exists because the assistant our family needed didn't exist. If it's useful to you, a coffee is appreciated — and sharing it or contributing a translation helps just as much.
 
 <p align="center">
 <a href="https://www.buymeacoffee.com/codedave"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me a Coffee" width="200"></a>
