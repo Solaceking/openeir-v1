@@ -13,7 +13,7 @@ import { db } from '@/lib/db'
 import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
 import { z } from 'zod'
 import { buildHealthContext, contextForPrompt } from '@/lib/ai/context'
-import { completeChat, builtinStatusSummary } from '@/lib/ai/providers'
+import { completeChat } from '@/lib/ai/providers'
 import { parseVoiceCommand } from '@/lib/voice/parser'
 import { readbackFor } from '@/lib/voice/types'
 import { parseSchedule } from '@/lib/health/meds'
@@ -194,10 +194,7 @@ export async function POST(req: Request) {
     await db.chatMessage.delete({ where: { id: userMsg.id } }).catch(() => {})
     let detail = result.attempted.length ? ` (${result.attempted[0].slice(0, 220)})` : ''
     if (!result.attempted.length) {
-      const builtin = await builtinStatusSummary()
-      detail = builtin.configured
-        ? ' — no provider in the chain is enabled. Open Settings → AI.'
-        : ` — the built-in gateway has no config on this machine (checked ${builtin.checkedPaths.join(', ')}). Add a .z-ai-config file or connect a provider in Settings → AI.`
+      detail = ' — no AI provider is enabled. Open Settings → AI providers and connect one.'
     }
     return fail(`Eir couldn't reach any AI provider yet${detail}`, 502, { attempted: result.attempted })
   }

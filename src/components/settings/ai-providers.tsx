@@ -27,7 +27,6 @@ import {
   Command, CommandEmpty, CommandInput, CommandItem, CommandList, CommandSeparator,
 } from '@/components/ui/command'
 import { useProviders } from '@/lib/api-client'
-import { GatewayConfigInspector } from '@/components/settings/gateway-config-inspector'
 import { toast } from 'sonner'
 import { PROVIDER_PRESETS, presetById, type ProviderPreset } from '@/lib/ai/presets'
 
@@ -73,7 +72,7 @@ interface DiscoveredCli {
   error?: string
 }
 
-const CLI_CHOICES = ['claude', 'codex', 'gemini', 'opencode']
+const CLI_CHOICES = ['claude', 'codex', 'gemini', 'opencode', 'hermes', 'openclaw', 'dsh', 'cline', 'cursor', 'grok']
 
 // ---------- small helpers ----------
 
@@ -95,7 +94,6 @@ function isNew(released: string | null): boolean {
 }
 
 const KIND_BADGE: Record<string, { label: string; cls: string }> = {
-  builtin: { label: 'gateway key', cls: 'border-teal-300 bg-teal-50 text-teal-800 dark:border-teal-800 dark:bg-teal-950 dark:text-teal-300' },
   'api-key': { label: 'API key', cls: '' },
   'keyless-local': { label: 'local · offline', cls: 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300' },
   harness: { label: 'subscription', cls: 'border-violet-300 bg-violet-50 text-violet-800 dark:border-violet-800 dark:bg-violet-950 dark:text-violet-300' },
@@ -120,7 +118,7 @@ function ModelCombobox({ catalogId, value, onChange }: { catalogId: string; valu
   if (customMode || q.isError) {
     return (
       <div>
-        <Input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1.5" placeholder="e.g. glm-4.7 / gpt-5.2" />
+        <Input value={value} onChange={(e) => onChange(e.target.value)} className="mt-1.5" placeholder="e.g. gpt-5.2 / claude-opus-4.8" />
         <p className="mt-1 text-[11px] text-muted-foreground">
           {q.isError ? 'Live catalog unavailable — type the model id from the provider docs.' : 'Custom model id.'}
         </p>
@@ -212,8 +210,8 @@ function ProviderDialog({
   // form step only makes sense once a preset is picked (new) or when editing
   const showForm = isEdit || Boolean(preset)
 
-  const needsUrl = adapter !== 'builtin_zai' && adapter !== 'cli'
-  const needsKey = adapter !== 'builtin_zai' && adapter !== 'ollama' && adapter !== 'cli' && !(!isEdit && preset?.kind === 'keyless-local')
+  const needsUrl = adapter !== 'cli'
+  const needsKey = adapter !== 'ollama' && adapter !== 'cli' && !(!isEdit && preset?.kind === 'keyless-local')
   const catalogId = !isEdit && preset?.modelsDevId ? preset.modelsDevId : null
 
   const save = useMutation({
@@ -287,11 +285,6 @@ function ProviderDialog({
                   <SelectTrigger className="mt-1.5"><SelectValue /></SelectTrigger>
                   <SelectContent>{CLI_CHOICES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}</SelectContent>
                 </Select></div>
-            ) : adapter === 'builtin_zai' ? (
-              <div><Label>Model (optional)</Label>
-                <Input value={model} onChange={(e) => setModel(e.target.value)} className="mt-1.5" placeholder="default" />
-                <p className="mt-1 text-[11px] text-muted-foreground">Leave empty for the built-in default.</p>
-              </div>
             ) : catalogId ? (
               <div><Label>Model <span className="text-muted-foreground">· live catalog</span></Label>
                 <ModelCombobox catalogId={catalogId} value={model} onChange={setModel} />
@@ -333,7 +326,6 @@ function ProviderDialog({
 
 interface AgentsResponse {
   agents: DiscoveredCli[]
-  zaiBridge: { title: string; lines: string[]; note: string }
   scannedAt: string
   cached: boolean
 }
@@ -349,7 +341,6 @@ function ago(iso: string): string {
 
 function HarnessPanel() {
   const qc = useQueryClient()
-  const [recipeCopied, setRecipeCopied] = useState(false)
   const q = useQuery({
     queryKey: ['agent-clis'],
     queryFn: async (): Promise<AgentsResponse> => {
@@ -472,26 +463,6 @@ function HarnessPanel() {
             )}
           </div>
         ))}
-        {q.data && (
-          <div className="rounded-xl border border-violet-200 bg-violet-50/60 p-3 dark:border-violet-900 dark:bg-violet-950/30">
-            <div className="flex items-center justify-between gap-2">
-              <div className="text-xs font-semibold text-violet-900 dark:text-violet-200">{q.data.zaiBridge.title}</div>
-              <Button size="sm" variant="ghost" className="h-7 gap-1 px-2"
-                onClick={() => {
-                  void navigator.clipboard.writeText(q.data.zaiBridge.lines.join('\n'))
-                  setRecipeCopied(true)
-                  setTimeout(() => setRecipeCopied(false), 1500)
-                }}>
-                {recipeCopied ? <Check className="h-3 w-3" aria-hidden /> : <Copy className="h-3 w-3" aria-hidden />}
-                {recipeCopied ? 'Copied' : 'Copy'}
-              </Button>
-            </div>
-            <pre className="mt-1.5 overflow-x-auto rounded-md bg-background/70 p-2 font-mono text-[10.5px] leading-relaxed text-violet-950 dark:text-violet-200">
-              {q.data.zaiBridge.lines.join('\n')}
-            </pre>
-            <p className="mt-1 text-[11px] leading-relaxed text-violet-900/80 dark:text-violet-300/80">{q.data.zaiBridge.note}</p>
-          </div>
-        )}
       </CardContent>
     </Card>
   )
@@ -551,29 +522,12 @@ export function AiProvidersSection() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
-          {providers.data?.builtin && !providers.data.builtin.configured && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/10 p-3.5">
-              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Built-in gateway is not configured on this machine</p>
-              <p className="mt-1 text-xs leading-relaxed text-amber-800/90 dark:text-amber-200/90">
-                The built-in AI talks to a GLM gateway whose key lives in a <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">.z-ai-config</code> JSON file ({'"'}baseUrl{'"'} + {'"'}apiKey{'"'}) at the project root, in your home directory, or at /etc/.z-ai-config — or set <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_API_KEY</code> + <code className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">ZAI_BASE_URL</code> env vars and restart — the inspector below shows exactly which of these exist on this machine. No gateway? Connect any provider below — OpenRouter is one key for hundreds of models, and Ollama runs fully offline.
-              </p>
-            </div>
-          )}
-          {providers.data?.builtin?.configured && (
-            <div className="rounded-xl border border-teal-500/30 bg-teal-500/10 px-3.5 py-2.5">
-              <p className="text-xs text-teal-800 dark:text-teal-200">
-                Built-in gateway ready — config from <code className="font-mono">{providers.data.builtin.source}</code>
-              </p>
-            </div>
-          )}
-          <GatewayConfigInspector defaultOpen={!providers.data?.builtin?.configured} />
           {providers.isLoading && <p className="py-4 text-sm text-muted-foreground">Loading…</p>}
           {providers.data?.providers.map((p) => (
             <div key={p.id} className={`rounded-xl border p-3.5 ${p.enabled ? '' : 'opacity-55'}`}>
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex min-w-0 items-center gap-2">
                   {p.adapter === 'cli' ? <Terminal className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" aria-hidden />
-                    : p.adapter === 'builtin_zai' ? <Sparkles className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" aria-hidden />
                     : <Cloud className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />}
                   <span className="truncate text-sm font-semibold">{p.label}</span>
                   {p.isDefault && <Badge className="border-0 bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-300"><Star className="mr-1 h-3 w-3" aria-hidden />default</Badge>}
@@ -650,7 +604,7 @@ export function AiProvidersSection() {
 
 /** Best-effort preset match when editing an existing row (for dialog prefill). */
 function rowToPresetId(p: ProviderRowView): string {
-  if (p.adapter === 'builtin_zai') return 'builtin'
+
   if (p.adapter === 'cli') return 'harness'
   const byUrl = PROVIDER_PRESETS.find((x) => x.baseUrl && p.baseUrl?.startsWith(x.baseUrl))
   return byUrl?.id ?? 'custom'

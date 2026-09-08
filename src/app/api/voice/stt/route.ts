@@ -15,9 +15,9 @@ const STT_TIMEOUT_MS = 45_000        // cloud backends: fast or never
 const STT_TIMEOUT_LOCAL_MS = 300_000 // self-hosted whisper on CPU can be slow — worth the wait
 
 // ---- user-configurable STT routing (Settings → Voice & audio) -------------
-// Stored in AppSetting: { order: ['local','builtin','gateway'], localUrl, localModel }
+// Stored in AppSetting: { order: ['local','gateway'], localUrl, localModel }
 // Every id may be included or omitted — the user's list IS the priority chain.
-// Defaults keep the pre-selection behavior: builtin first, then any gateway.
+// Defaults: gateway providers (OmniRoute etc.) — nothing hidden, nothing pre-seeded.
 interface SttRouting {
   order: string[]
   localUrl: string
@@ -25,7 +25,7 @@ interface SttRouting {
 }
 
 const DEFAULT_ROUTING: SttRouting = {
-  order: ['builtin', 'gateway'],
+  order: ['gateway'],
   localUrl: 'http://localhost:8630/v1',
   localModel: 'large-v3',
 }
@@ -52,7 +52,7 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   const parsed = z.object({
-    order: z.array(z.enum(['local', 'builtin', 'gateway'])).min(1).max(3),
+    order: z.array(z.enum(['local', 'gateway'])).min(1).max(2),
     localUrl: z.string().url().optional(),
     localModel: z.string().max(80).optional(),
   }).safeParse(await req.json().catch(() => null))
@@ -122,22 +122,6 @@ async function transcribeOpenAiStyle(
   return null
 }
 
-/** Built-in GLM gateway. undefined = not configured (skip silently). */
-async function transcribeBuiltin(audioB64: string): Promise<{ text: string } | null | undefined> {
-  try {
-    const { default: ZAI } = await import('z-ai-web-dev-sdk')
-    const zai = await ZAI.create()
-    const res = await zai.audio.asr.create({ file_base64: audioB64 })
-    const text = (res?.text ?? '').trim()
-    if (!text) return null
-    return { text }
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e)
-    if (/configuration file not found|not configured|no config/i.test(msg)) return undefined
-    console.error('[voice/stt] builtin failed:', msg)
-    return undefined
-  }
-}
 
 export async function POST(req: NextRequest) {
   let body: unknown
@@ -159,11 +143,6 @@ export async function POST(req: NextRequest) {
       )
       if (result) return NextResponse.json({ text: result.text, via: 'local' })
       attempted.push('local')
-    } else if (backend === 'builtin') {
-      const result = await transcribeBuiltin(audio)
-      if (result) return NextResponse.json({ text: result.text, via: 'builtin' })
-      // undefined = unconfigured → skipped without being counted as an attempt
-      if (result === null) attempted.push('builtin')
     } else if (backend === 'gateway') {
       const rows = await db.aiProviderConfig.findMany({
         where: { enabled: true, adapter: 'openai_compatible' },

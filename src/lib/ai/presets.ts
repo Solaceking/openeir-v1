@@ -7,17 +7,16 @@
 // kind:
 //   'api-key'       — paste a key from the provider console
 //   'keyless-local' — runs on the user's machine, no key at all
-//   'builtin'       — OpenEir's own gateway, works out of the box
 //   'harness'       — agent CLI on this machine (subscription auth, e.g. Claude
 //                     Pro via Claude Code) — configured in the harness panel
 
-export type PresetKind = 'builtin' | 'api-key' | 'keyless-local' | 'harness'
+export type PresetKind = 'api-key' | 'keyless-local' | 'harness'
 
 export interface ProviderPreset {
   id: string
   label: string
   tagline: string
-  adapter: 'builtin_zai' | 'openai_compatible' | 'anthropic' | 'ollama' | 'cli'
+  adapter: 'openai_compatible' | 'anthropic' | 'ollama' | 'cli'
   baseUrl: string | null
   /** provider key in the models.dev catalog (drives the model dropdown) */
   modelsDevId?: string
@@ -29,15 +28,6 @@ export interface ProviderPreset {
 }
 
 export const PROVIDER_PRESETS: ProviderPreset[] = [
-  {
-    id: 'builtin',
-    label: 'OpenEir Built-in',
-    tagline: 'GLM gateway — no API bills, config lives on this machine',
-    adapter: 'builtin_zai',
-    baseUrl: null,
-    kind: 'builtin',
-    note: 'OpenEir\'s own gateway to the GLM family. Where a gateway config exists (.z-ai-config at the project root, in your home folder, or /etc — or ZAI_API_KEY + ZAI_BASE_URL env vars), every AI feature works out of the box with no provider account. Self-hosting without one? Add the config file, or connect any provider below.',
-  },
   {
     id: 'openrouter',
     label: 'OpenRouter',

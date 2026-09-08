@@ -9,17 +9,17 @@
 //        Buzz-style: timestamped, idempotent, never disrupts attached providers.
 
 import { ok } from '@/lib/api-utils'
-import { scanClis, ZAI_BRIDGE_RECIPE } from '@/lib/ai/harness'
+import { scanClis } from '@/lib/ai/harness'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 export async function GET() {
   const { agents, scannedAt, cached } = await scanClis()
-  return ok({ agents, zaiBridge: ZAI_BRIDGE_RECIPE, scannedAt, cached })
+  return ok({ agents, scannedAt, cached })
 }
 
 export async function POST() {
   const { agents, scannedAt } = await scanClis(true)
-  return ok({ agents, zaiBridge: ZAI_BRIDGE_RECIPE, scannedAt, cached: false })
+  return ok({ agents, scannedAt, cached: false })
 }

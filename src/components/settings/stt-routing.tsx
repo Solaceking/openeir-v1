@@ -13,7 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 
-type Backend = 'local' | 'builtin' | 'gateway'
+type Backend = 'local' | 'gateway'
 
 interface Routing {
   order: Backend[]
@@ -23,7 +23,6 @@ interface Routing {
 
 const LABELS: Record<Backend, string> = {
   local: 'Local Whisper (self-hosted, never leaves your box)',
-  builtin: 'Built-in gateway (GLM ASR)',
   gateway: 'AI providers (OmniRoute → Groq/OpenAI…)',
 }
 
@@ -114,7 +113,7 @@ export function SttRoutingEditor() {
       </div>
 
       {/* available backends not in the chain */}
-      {(['local', 'builtin', 'gateway'] as Backend[]).filter((id) => !routing.order.includes(id)).map((id) => (
+      {(['local', 'gateway'] as Backend[]).filter((id) => !routing.order.includes(id)).map((id) => (
         <div key={id} className="flex items-center justify-between gap-2 rounded-md border border-dashed border-border/60 px-2.5 py-1.5 opacity-70">
           <span className="truncate text-xs text-muted-foreground">{LABELS[id]}</span>
           <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" onClick={() => toggle(id, true)}>enable</Button>

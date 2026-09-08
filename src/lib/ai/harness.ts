@@ -148,22 +148,57 @@ export interface DiscoveredCli {
   error?: string
 }
 
+// The service may run under systemd's minimal PATH (no ~/.npm-global/bin),
+// which would make every installed CLI invisible. Probe with an expanded PATH.
+const PROBE_PATH = [
+  join(homedir(), '.npm-global/bin'),
+  join(homedir(), '.local/bin'),
+  '/usr/local/bin',
+  '/usr/local/sbin',
+  process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
+  '/opt/homebrew/bin',
+].join(':')
+
+/** Resolve a CLI to an absolute path via PROBE_PATH. null = not installed. */
+function resolveCli(cmd: string): string | null {
+  if (cmd.includes('/')) {
+    try { accessSync(cmd); return cmd } catch { return null }
+  }
+  for (const dir of PROBE_PATH.split(':')) {
+    if (!dir) continue
+    const p = join(dir, cmd)
+    try { accessSync(p); return p } catch { /* next dir */ }
+  }
+  return null
+}
+
 async function probe(spec: CliAgentSpec): Promise<DiscoveredCli> {
   const base: Omit<DiscoveredCli, 'found' | 'version' | 'authLikely'> = {
     id: spec.id, cmd: spec.cmd, label: spec.label, vendor: spec.vendor,
     login: spec.login, installHint: spec.installHint,
   }
+  // found = the executable exists (instant, no cold-start flakiness).
+  // version = best effort only — some CLIs hang or update-check on --version.
+  const abs = resolveCli(spec.cmd)
+  if (!abs) return { ...base, found: false, version: null, authLikely: null, error: 'not installed' }
+  let version: string | null = null
   try {
-    const { stdout } = await exec(spec.cmd, ['--version'], { timeout: 10_000 })
-    return {
-      ...base,
-      found: true,
-      version: stdout.trim().split('\n')[0]?.slice(0, 40) ?? null,
-      authLikely: spec.authPath ? authFileExists(spec.authPath) : null,
-    }
+    const { stdout } = await exec(abs, ['--version'], {
+      timeout: 8_000,
+      env: { ...process.env, PATH: PROBE_PATH },
+    })
+    version = stdout.trim().split('\n')[0]?.slice(0, 40) || null
   } catch (e) {
-    const code = (e as { code?: string }).code
-    return { ...base, found: false, version: null, authLikely: null, error: code === 'ENOENT' ? 'not installed' : 'present but failed to report version' }
+    const err = e as { stdout?: string }
+    const printed = (err.stdout ?? '').trim().split('\n')[0]?.slice(0, 40)
+    if (printed) version = printed
+    // else: installed but quiet — still found
+  }
+  return {
+    ...base,
+    found: true,
+    version,
+    authLikely: spec.authPath ? authFileExists(spec.authPath) : null,
   }
 }
 
@@ -219,11 +254,14 @@ const CLI_MAX_BUFFER = 2 * 1024 * 1024
 export async function callCliAgent(cliId: string, systemText: string, userText: string): Promise<string> {
   const spec = CLI_AGENTS.find((c) => c.id === cliId)
   if (!spec) throw new Error(`unknown agent CLI: ${cliId}`)
+  const abs = resolveCli(spec.cmd)
+  if (!abs) throw new Error(`${spec.label} is not installed on the server (${spec.installHint})`)
   const prompt = systemText.trim() ? `Instructions:\n${systemText.trim()}\n\nRequest:\n${userText}` : userText
   try {
-    const { stdout } = await exec(spec.cmd, spec.args(prompt), {
+    const { stdout } = await exec(abs, spec.args(prompt), {
       timeout: CLI_TIMEOUT_MS,
       maxBuffer: CLI_MAX_BUFFER,
+      env: { ...process.env, PATH: PROBE_PATH },
     })
     const text = stdout.trim()
     if (!text) throw new Error(`${spec.label} returned empty output`)
@@ -234,15 +272,4 @@ export async function callCliAgent(cliId: string, systemText: string, userText: 
     if (err.code === 'ENOENT') throw new Error(`${spec.label} is not installed on the server (${spec.installHint})`)
     throw new Error(`${spec.label} failed: ${(err.message ?? 'unknown error').slice(0, 200)}`)
   }
-}
-
-/** The Z.ai coding-plan → Claude Code bridge recipe (shown in the harness panel). */
-export const ZAI_BRIDGE_RECIPE = {
-  title: 'Use a Z.ai GLM Coding Plan key inside Claude Code',
-  lines: [
-    'export ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic',
-    'export ANTHROPIC_AUTH_TOKEN=<your GLM coding-plan key>',
-    'claude   # Claude Code now runs on your GLM quota',
-  ],
-  note: 'Then pick the Claude Code harness above — OpenEir routes through the CLI, your coding-plan quota pays the bill, and the subscription stays on its legal path.',
 }

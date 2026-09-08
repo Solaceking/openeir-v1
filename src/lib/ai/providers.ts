@@ -1,13 +1,11 @@
 // OpenEir — provider-agnostic AI abstraction layer.
-// Adapters: builtin_zai | openai_compatible | anthropic | ollama
+// Adapters: openai_compatible | anthropic | ollama | cli
 // The orchestrator never talks to a vendor directly — it asks this layer,
 // which walks the fallback chain by priority and records usage/cost/latency.
 
 import { db } from '@/lib/db'
 import { decryptSecret } from '@/lib/crypto'
-import { DEFAULT_BUILTIN_MODEL, DEFAULT_BUILTIN_VISION_MODEL, isVisionModelId } from '@/lib/ai/model-default'
 import { callCliAgent } from '@/lib/ai/harness'
-import { ensureBuiltinProvider, builtinGatewayStatus } from '@/lib/ai/builtin'
 
 export interface ChatImage { mediaType: string; dataBase64: string }
 
@@ -46,44 +44,6 @@ function multimodalContent(m: ChatMessage): string | Array<Record<string, unknow
       image_url: { url: `data:${img.mediaType};base64,${img.dataBase64}` },
     })),
   ]
-}
-
-async function callBuiltinZai(messages: ChatMessage[], model: string | null): Promise<string> {
-  const { default: ZAI } = await import('z-ai-web-dev-sdk')
-  const zai = await ZAI.create()
-
-  // Vision requests must use the gateway's dedicated vision endpoint and a
-  // vision-capable model id (its text endpoint rejects image content).
-  if (messages.some((m) => m.images?.length)) {
-    const visionModel = model && isVisionModelId(model) ? model : DEFAULT_BUILTIN_VISION_MODEL
-    const completion = (await zai.chat.completions.createVision({
-      model: visionModel,
-      messages: messages.map((m) => ({
-        role: m.role,
-        content: multimodalContent(m) as string | Array<Record<string, unknown>>,
-      })),
-      thinking: { type: 'disabled' },
-    } as unknown as Parameters<typeof zai.chat.completions.createVision>[0])) as {
-      choices?: Array<{ message?: { content?: string } }>
-    }
-    const text = completion.choices?.[0]?.message?.content ?? ''
-    if (!text.trim()) throw new Error('empty response from built-in vision endpoint')
-    return text
-  }
-
-  // The SDK uses 'assistant' role for the system prompt.
-  const sdkMessages = messages.map((m) => ({
-    role: m.role === 'system' ? 'assistant' : m.role,
-    content: m.content,
-  }))
-  const completion = await zai.chat.completions.create({
-    model: model || DEFAULT_BUILTIN_MODEL,
-    messages: sdkMessages,
-    thinking: { type: 'disabled' },
-  } as Parameters<typeof zai.chat.completions.create>[0])
-  const text = completion.choices[0]?.message?.content ?? ''
-  if (!text.trim()) throw new Error('empty response from built-in provider')
-  return text
 }
 
 async function callOpenAiCompatible(row: ProviderRow, apiKey: string | null, messages: ChatMessage[]): Promise<string> {
@@ -158,13 +118,6 @@ export async function completeChat(
     where: { enabled: true },
     orderBy: [{ priority: 'asc' }, { isDefault: 'desc' }],
   })
-  if (rows.length === 0) {
-    await ensureBuiltinProvider()
-    rows = await db.aiProviderConfig.findMany({
-      where: { enabled: true },
-      orderBy: [{ priority: 'asc' }, { isDefault: 'desc' }],
-    })
-  }
   const attempted: string[] = []
   for (const row of rows) {
     const started = Date.now()
@@ -178,8 +131,7 @@ export async function completeChat(
       const systemText = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n')
       const userText = messages.filter((m) => m.role !== 'system').map((m) => m.content).join('\n\n')
       let text: string
-      if (row.adapter === 'builtin_zai') text = await callBuiltinZai(messages, row.model)
-      else if (row.adapter === 'anthropic') text = await callAnthropic(row, apiKey, messages)
+      if (row.adapter === 'anthropic') text = await callAnthropic(row, apiKey, messages)
       else if (row.adapter === 'cli') text = await callCliAgent(row.model ?? 'claude', systemText, userText)
       else text = await callOpenAiCompatible(row, apiKey, messages) // openai_compatible & ollama
       const latency = Date.now() - started
@@ -194,10 +146,10 @@ export async function completeChat(
     } catch (err) {
       const latency = Date.now() - started
       let msg = err instanceof Error ? err.message : String(err)
-      // Translate the SDK's raw config error into guidance a self-hoster can act on.
-      if (msg.includes('Configuration file not found')) {
-        const st = await builtinGatewayStatus()
-        msg = `built-in gateway has no config on this machine — checked ${st.checkedPaths.join(', ')}. Create a .z-ai-config JSON file ({"baseUrl": "…", "apiKey": "…"}) at the project root, or set ZAI_API_KEY + ZAI_BASE_URL env vars, or connect any provider in Settings → AI`
+      // Agentic-harness-only models (OpenRouter free tier, e.g. *:free ids that
+      // require an agent client) — say exactly that instead of a raw 403 dump.
+      if (/only available on agentic harnesses/i.test(msg)) {
+        msg = `${row.label}: model is restricted to agentic harness clients (Claude Code, Codex, Cursor…) by the upstream provider — pick a regular model, or route through an Agent harness in Settings → AI`
       }
       attempted.push(`${row.label}: ${msg}`)
       await db.aiUsage.create({
@@ -213,10 +165,9 @@ export async function completeChat(
   return { ok: false, text: '', providerLabel: 'none', latencyMs: 0, attempted }
 }
 
-/** One-line readiness check for the Settings panel and first-run UX. */
+/** One-line readiness check (kept for API shape; no hidden gateway exists anymore). */
 export async function builtinStatusSummary(): Promise<{ configured: boolean; source: string | null; checkedPaths: string[] }> {
-  const st = await builtinGatewayStatus()
-  return { configured: st.configured, source: st.source, checkedPaths: st.checkedPaths }
+  return { configured: false, source: null, checkedPaths: [] }
 }
 
 /** Strip likely-PII when privacy mode is on. */

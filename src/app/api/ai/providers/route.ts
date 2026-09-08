@@ -3,12 +3,10 @@ import { db } from '@/lib/db'
 import { ok, fail, parseBody } from '@/lib/api-utils'
 import { z } from 'zod'
 import { encryptSecret } from '@/lib/crypto'
-import { builtinStatusSummary } from '@/lib/ai/providers'
-import { ensureBuiltinProvider } from '@/lib/ai/builtin'
 
 export const dynamic = 'force-dynamic'
 
-const ADAPTERS = ['builtin_zai', 'openai_compatible', 'anthropic', 'ollama', 'cli'] as const
+const ADAPTERS = ['openai_compatible', 'anthropic', 'ollama', 'cli'] as const
 
 const createSchema = z.object({
   label: z.string().min(1).max(60),
@@ -38,8 +36,6 @@ const listSchema = z.object({
 })
 
 export async function GET() {
-  // Fresh clone: make sure the built-in row exists before listing.
-  await ensureBuiltinProvider()
   const rows = await db.aiProviderConfig.findMany({ orderBy: [{ priority: 'asc' }, { isDefault: 'desc' }] })
   const providers: (z.infer<typeof listSchema>)[] = rows.map((r) => ({
     id: r.id, label: r.label, adapter: r.adapter, baseUrl: r.baseUrl, model: r.model,
@@ -48,15 +44,15 @@ export async function GET() {
     lastStatus: r.lastStatus, lastLatencyMs: r.lastLatencyMs,
   }))
   const usage = await db.aiUsage.findMany({ orderBy: { createdAt: 'desc' }, take: 40 })
-  return ok({ providers, usage, builtin: await builtinStatusSummary() })
+  return ok({ providers, usage, builtin: { configured: false, source: null, checkedPaths: [] } })
 }
 
 export async function POST(req: Request) {
   const parsed = await parseBody(req, createSchema)
   if ('response' in parsed) return parsed.response
   const d = parsed.data
-  // builtin needs neither URL nor key; harness rows store the CLI id in `model`
-  if (!['builtin_zai', 'cli'].includes(d.adapter) && !d.baseUrl) return fail('baseUrl is required for external providers', 422)
+  // cli rows store the CLI id in `model` — no URL needed
+  if (d.adapter !== 'cli' && !d.baseUrl) return fail('baseUrl is required for external providers', 422)
   const provider = await db.aiProviderConfig.create({
     data: {
       label: d.label,
