@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
-import { decryptSecret } from '@/lib/crypto'
+import { decryptSecret, encryptSecret } from '@/lib/crypto'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -15,27 +15,55 @@ const STT_TIMEOUT_MS = 45_000        // cloud backends: fast or never
 const STT_TIMEOUT_LOCAL_MS = 300_000 // self-hosted whisper on CPU can be slow — worth the wait
 
 // ---- user-configurable STT routing (Settings → Voice & audio) -------------
-// Stored in AppSetting: { order: ['local','gateway'], localUrl, localModel }
-// Every id may be included or omitted — the user's list IS the priority chain.
-// Defaults: gateway providers (OmniRoute etc.) — nothing hidden, nothing pre-seeded.
+// Stored in AppSetting 'stt.routing'. Two eras, one shape:
+//   v1: { order: ['local','gateway'], localUrl, localModel }
+//   v2: { providers: [{id,label,baseUrl,model,keyEnc,enabled}], order: [...] }
+// v2 keeps 'local'/'gateway' as pseudo-ids so old clients keep working; the
+// new provider rows are named entries the user manages like AI providers.
+// Nothing hidden: every row the server will call is visible in settings.
+interface SttProvider {
+  id: string
+  label: string
+  baseUrl: string
+  model: string
+  keyEnc?: string | null // AES-256-GCM encrypted, never returned to the client
+  enabled: boolean
+}
+
 interface SttRouting {
-  order: string[]
+  providers: SttProvider[]
+  order: string[] // ids into providers[], plus pseudo-ids 'local' | 'gateway'
   localUrl: string
   localModel: string
 }
 
 const DEFAULT_ROUTING: SttRouting = {
+  providers: [],
   order: ['gateway'],
   localUrl: 'http://localhost:8630/v1',
   localModel: 'large-v3',
 }
 
+const PROVIDER_SCHEMA = z.object({
+  id: z.string().min(1).max(64),
+  label: z.string().min(1).max(60),
+  baseUrl: z.string().url(),
+  model: z.string().max(120),
+  apiKey: z.string().max(400).optional(), // plain in transit, encrypted at rest
+  enabled: z.boolean(),
+})
+
 async function getRouting(): Promise<SttRouting> {
   const row = await db.appSetting.findUnique({ where: { key: 'stt.routing' } })
   if (!row?.value) return DEFAULT_ROUTING
   try {
-    const parsed = JSON.parse(row.value) as Partial<SttRouting>
+    const parsed = JSON.parse(row.value) as Partial<SttRouting> & { order?: unknown }
+    const providers = Array.isArray(parsed.providers)
+      ? parsed.providers.filter((p): p is SttProvider =>
+          Boolean(p && typeof p.id === 'string' && typeof p.baseUrl === 'string'))
+      : []
     return {
+      providers,
       order: Array.isArray(parsed.order) && parsed.order.length ? parsed.order : DEFAULT_ROUTING.order,
       localUrl: parsed.localUrl || DEFAULT_ROUTING.localUrl,
       localModel: parsed.localModel || DEFAULT_ROUTING.localModel,
@@ -45,21 +73,47 @@ async function getRouting(): Promise<SttRouting> {
   }
 }
 
-export async function GET() {
-  const routing = await getRouting()
-  return NextResponse.json({ routing })
+/** Client view: same shape minus secrets. */
+function publicRouting(r: SttRouting) {
+  return {
+    providers: r.providers.map((p) => ({ ...p, keyEnc: undefined, hasKey: Boolean(p.keyEnc) })),
+    order: r.order,
+    localUrl: r.localUrl,
+    localModel: r.localModel,
+  }
 }
 
+export async function GET() {
+  const routing = await getRouting()
+  return NextResponse.json({ routing: publicRouting(routing) })
+}
+
+// PUT — replace the whole routing doc (order + provider rows, like the old UI)
+const PutSchema = z.object({
+  order: z.array(z.string().min(1).max(40)).min(1).max(12),
+  localUrl: z.string().url().optional(),
+  localModel: z.string().max(80).optional(),
+  providers: z.array(PROVIDER_SCHEMA).max(12).optional(),
+})
+
 export async function PUT(req: NextRequest) {
-  const parsed = z.object({
-    order: z.array(z.enum(['local', 'gateway'])).min(1).max(2),
-    localUrl: z.string().url().optional(),
-    localModel: z.string().max(80).optional(),
-  }).safeParse(await req.json().catch(() => null))
+  const parsed = PutSchema.safeParse(await req.json().catch(() => null))
   if (!parsed.success) return NextResponse.json({ error: 'invalid_request' }, { status: 400 })
   const current = await getRouting()
+
+  // merge provider rows by id: keep existing encrypted keys unless replaced
+  const providers: SttProvider[] = (parsed.data.providers ?? current.providers).map((p) => {
+    const existing = current.providers.find((x) => x.id === p.id)
+    const keyEnc = p.apiKey ? encryptSecret(p.apiKey) : existing?.keyEnc ?? null
+    return { id: p.id, label: p.label, baseUrl: p.baseUrl, model: p.model, keyEnc, enabled: p.enabled }
+  })
+  const ids = new Set(providers.map((p) => p.id))
+  const order = parsed.data.order.filter((id) => ids.has(id) || id === 'local' || id === 'gateway')
+  if (!order.length) order.push('gateway')
+
   const routing: SttRouting = {
-    order: parsed.data.order,
+    providers,
+    order,
     localUrl: parsed.data.localUrl ?? current.localUrl,
     localModel: parsed.data.localModel ?? current.localModel,
   }
@@ -68,7 +122,7 @@ export async function PUT(req: NextRequest) {
     update: { value: JSON.stringify(routing) },
     create: { key: 'stt.routing', value: JSON.stringify(routing) },
   })
-  return NextResponse.json({ routing })
+  return NextResponse.json({ routing: publicRouting(routing) })
 }
 
 // ---- transcription backends -------------------------------------------------
@@ -122,7 +176,6 @@ async function transcribeOpenAiStyle(
   return null
 }
 
-
 export async function POST(req: NextRequest) {
   let body: unknown
   try {
@@ -161,6 +214,17 @@ export async function POST(req: NextRequest) {
         }
       }
       attempted.push('gateway')
+    } else {
+      // v2: a named STT provider row
+      const provider = routing.providers.find((p) => p.id === backend && p.enabled)
+      if (!provider) continue
+      let apiKey: string | null = null
+      try { apiKey = decryptSecret(provider.keyEnc ?? null) } catch { apiKey = null }
+      const result = await transcribeOpenAiStyle(
+        `stt:${provider.label}`, provider.baseUrl, apiKey, audio, mime, provider.model || undefined,
+      )
+      if (result) return NextResponse.json({ text: result.text, via: `stt:${provider.label}` })
+      attempted.push(provider.label)
     }
   }
 

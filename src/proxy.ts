@@ -18,7 +18,7 @@ import { pluginTokenAuthorizes } from '@/lib/plugin-auth'
 
 export const config = {
   // proxy always runs on the Node.js runtime in Next 16 — matcher only
-  matcher: ['/((?!_next/static|_next/image|icons|manifest.webmanifest|sw.js|favicon|robots|sitemap).*)'],
+  matcher: ['/((?!_next/static|_next/image|icons|mascot|manifest.webmanifest|sw.js|favicon|logo.svg|offline.html|robots|sitemap).*)'],
 }
 
 type Rule = { prefix: string; methods?: string[]; role: 'public' | 'any' | 'edit' | 'admin' }
