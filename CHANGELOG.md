@@ -1,5 +1,13 @@
 # Changelog
 
+## v3.8.1 — 2026-09-09
+
+### Changed — CI
+- **Android build workflow activated**: `.github/workflows/android.yml` is now live in the repo (previously shipped as `docs/ci/android.yml`, awaiting a deploy token with the GitHub `workflow` scope). Every `v*` tag push now builds `OpenEir.apk` on GitHub-hosted runners and attaches it to the matching release — signed when the four keystore secrets are set, unsigned otherwise. No repository secrets were harmed: this release carries the first **unsigned test APK**.
+- Housekeeping: removed a 1-byte broken `.github/workflows/deploy.yml` stub (never valid, never fired); the landing-site copy directory is now gitignored so tooling cannot re-add it as a stray submodule pointer; `docs/MOBILE.md` release section updated to reflect that activation is done.
+
+**Full changelog**: https://github.com/Solaceking/openeir/compare/v3.8...v3.8.1
+
 ## v3.8 — 2026-09-09
 
 ### Added — the OpenEir Android companion app 📱

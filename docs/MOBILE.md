@@ -81,12 +81,9 @@ nothing bundled from the internet. Native code is plain Java under
 ## Releases (signing)
 
 The workflow that builds and attaches `OpenEir.apk` on every `v*` tag lives at
-`docs/ci/android.yml`. If your deploy token lacks the GitHub `workflow` scope,
-activate it once with:
-
-```bash
-mkdir -p .github/workflows && mv docs/ci/android.yml .github/workflows/ && git add -A && git commit -m "ci: enable android build" && git push
-```
+`.github/workflows/android.yml` (canonical source kept at `docs/ci/android.yml`).
+It has been **active since v3.8.1** — every `v*` tag push now builds the APK and
+attaches it to the matching GitHub release automatically.
 
 Add four repository **secrets** to publish signed builds:
 
