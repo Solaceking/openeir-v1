@@ -1,7 +1,14 @@
 // OpenEir — local access control: accounts, scrypt passwords, cookie sessions.
-// Household mode ("open", no accounts) keeps the classic zero-friction behavior;
-// the moment the first account exists the instance switches to "accounts" mode
-// and every page/API (except explicitly public endpoints) requires a session.
+// Modes:
+//   bootstrap → fresh instance, no accounts yet: EVERYTHING is gated except
+//               first-account creation, sign-in and the healthcheck. This is
+//               the default, so one-click cloud deploys are never passwordless.
+//   accounts  → at least one active account: every page/API (except explicitly
+//               public endpoints) requires a session, matched against a role matrix.
+//   open      → classic zero-friction household mode. OPT-IN ONLY via the
+//               OPENEIR_HOUSEHOLD=1 environment variable — meant for trusted
+//               LANs, never the default on a public URL.
+// The moment the first account is created the instance locks into "accounts".
 
 import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'crypto'
 import { cookies } from 'next/headers'
@@ -10,7 +17,7 @@ import type { Role } from '@/lib/nav'
 
 export const SESSION_COOKIE = 'openeir_session'
 export const SESSION_DAYS = 30
-export type AuthMode = 'open' | 'accounts'
+export type AuthMode = 'open' | 'accounts' | 'bootstrap'
 
 // ---------- passwords (scrypt, salted) ----------
 
@@ -43,9 +50,19 @@ function newToken(): string {
 let modeCache: { mode: AuthMode; at: number } | null = null
 
 export async function getAuthMode(): Promise<AuthMode> {
+  // Explicit opt-out for trusted-LAN households — never the default.
+  if (process.env.OPENEIR_HOUSEHOLD === '1') return 'open'
   if (modeCache && Date.now() - modeCache.at < 5000) return modeCache.mode
   const row = await db.appSetting.findUnique({ where: { key: 'auth_mode' } })
-  const mode: AuthMode = row?.value === 'accounts' ? 'accounts' : 'open'
+  let mode: AuthMode
+  if (row?.value === 'accounts') {
+    mode = 'accounts'
+  } else {
+    // No stored accounts-mode flag: decide from reality. Any active account →
+    // accounts mode; an empty instance → bootstrap (gated until first setup).
+    const count = await db.account.count({ where: { active: true } })
+    mode = count > 0 ? 'accounts' : 'bootstrap'
+  }
   modeCache = { mode, at: Date.now() }
   return mode
 }
@@ -61,8 +78,12 @@ export async function setAuthMode(mode: AuthMode): Promise<void> {
 
 /** Recompute mode from the accounts table (used after create/delete). */
 export async function refreshAuthMode(): Promise<AuthMode> {
+  if (process.env.OPENEIR_HOUSEHOLD === '1') {
+    await setAuthMode('open')
+    return 'open'
+  }
   const count = await db.account.count({ where: { active: true } })
-  const mode: AuthMode = count > 0 ? 'accounts' : 'open'
+  const mode: AuthMode = count > 0 ? 'accounts' : 'bootstrap'
   await setAuthMode(mode)
   return mode
 }

@@ -1,5 +1,22 @@
 # Changelog
 
+## v3.7 — 2026-09-09
+
+### Security — authentication is now ON by default (breaking for passwordless installs)
+- **The hole:** a fresh instance previously booted in `open` household mode — no login screen, every API readable and writable by anyone who found the URL. The documented happy path for the Railway/DigitalOcean one-click buttons never required creating an account, so a public deployment of your health data was one click away from being public. The setup wizard saved your profile *before* any credential existed, and nothing in the UI ever pushed you to add one.
+- **The fix:** a fresh instance now boots in **bootstrap mode** — every page and API is locked except sign-in, auth status, the Docker healthcheck and exactly one door: creating the first (admin) account. The login page becomes a *"Set up OpenEir"* screen when the instance is brand new, creates the admin, signs you in and drops you straight into the setup wizard. Once the first account exists the instance locks into normal accounts mode (role matrix, admin/caregiver/viewer) — unchanged behavior for every existing authenticated install.
+- **Household mode is now an explicit opt-in:** set `OPENEIR_HOUSEHOLD=1` to keep the classic no-password mode — documented as trusted-LAN-only, never the default, called out in the README quick start, `.env.example` and `docs/SECURITY.md`.
+- Migration note: if you run an old passwordless install, after upgrading you will be asked to create the first account on next visit — your data is untouched; add family accounts in Settings afterwards.
+
+### Fixed — honest privacy wording for voice (🟡 from the external review)
+- The README claimed Edge neural voices are "synthesized inside your instance". They are not: `msedge-tts` is an unofficial client for **Microsoft's public Edge Read-Aloud endpoint** — no keys and no account, but the *spoken text* (briefings, replies) leaves the server to Microsoft for synthesis. README + `docs/VOICE_AND_TALK.md` now say so plainly, including a "where your words go" table note, and point at the genuinely local options (on-device `SpeechSynthesis`, self-hosted transcription server). The stale "built-in GLM gateway ASR" row was corrected too — the server ear routes to *your* configured OpenAI-compatible endpoints.
+
+### Removed
+- `z-ai-web-dev-sdk` — listed as a dependency but imported nowhere in `src/` (a stale dev script went with it). One less supply-chain surface.
+
+### Docs
+- `docs/SECURITY.md`: supported version corrected to 3.x; the placeholder `security@openeir.example` replaced with GitHub **private vulnerability reporting**; the "single-user/no-auth accepted risk" paragraph replaced by the new bootstrap/accounts/household access model; hardening checklist updated.
+
 ## v3.6 — 2026-09-09
 
 ### Fixed — the "Morning briefing ready" notification could repeat all day

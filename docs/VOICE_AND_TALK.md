@@ -62,10 +62,12 @@ If the AI provider is unreachable, the failed send renders an **actionable banne
 
 | Direction | Engine | Where it runs | Keys needed |
 |---|---|---|---|
-| **Text → speech** | **Edge neural voices** (`msedge-tts`) — 14 curated voices across US/UK/AU/IE/IN accents, adjustable rate 0.6–1.6× | **Your server** (`POST /api/voice/tts`) → MP3 → cached on disk (`.tts-cache`, ETag/304, sha256 keys) | **None** |
-| Text → speech (fallback) | Browser `SpeechSynthesis` | Device | None |
-| **Speech → text** | Web Speech API (`SpeechRecognition`) | Browser (Chrome/Edge/Safari; Chrome needs network) | None |
-| Speech → text (**server ear** fallback) | Built-in GLM gateway ASR (`z-ai-web-dev-sdk`) | **Your server** (`POST /api/voice/stt`) — base64 utterance in, transcript out, nothing persisted | **None** |
+| **Text → speech** | **Edge neural voices** (`msedge-tts`) — 14 curated voices across US/UK/AU/IE/IN accents, adjustable rate 0.6–1.6× | **Microsoft's Edge Read-Aloud endpoint**, called from your server (`POST /api/voice/tts`) → MP3 → cached on disk (`.tts-cache`, ETag/304, sha256 keys). ⚠️ No keys and no account are needed, but **the spoken text leaves your server to Microsoft** for synthesis | **None** |
+| Text → speech (fallback) | Browser `SpeechSynthesis` | Device — nothing leaves it | None |
+| **Speech → text** | Web Speech API (`SpeechRecognition`) | Browser (Chrome/Edge/Safari; Chrome/Edge route audio through the browser vendor's speech service) | None |
+| Speech → text (**server ear** fallback) | Any OpenAI-compatible transcription endpoint you configure (e.g. a self-hosted faster-whisper server or a cloud gateway) | **Your server** (`POST /api/voice/stt`) — base64 utterance in, transcript out, nothing persisted. With a self-hosted ear, audio never leaves your machine | Yours |
+
+**Where your words go — the honest list.** Eir's speech is private-first but not magically air-gapped: picking an **Edge voice** sends the *spoken text* (briefings, replies) to Microsoft's public Edge Read-Aloud service — the text of what is said aloud, never your health database. Chrome/Edge **speech recognition** sends captured audio to the browser vendor's speech service. If you want speech that never involves a third party, use the **browser `SpeechSynthesis` voices** (on-device playback) and a **self-hosted transcription server** — OpenEir works fully that way.
 
 TTS requests are zod-validated (`text ≤ 600 chars`, voice allow-list, rate clamp) and served as `audio/mpeg`. The client keeps an in-memory blob cache (~80 entries) and speaks via `Audio` elements; any failure falls back to device voices — **readbacks never go silent**.
 

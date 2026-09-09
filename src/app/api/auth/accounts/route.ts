@@ -12,11 +12,14 @@ const createSchema = z.object({
   role: z.enum(['admin', 'caregiver', 'viewer']),
 })
 
-/** Admin gate that also permits BOOTSTRAP: in open household mode there is no
- *  session yet, and creating the very first account must be possible. */
+/** Admin gate that also permits BOOTSTRAP: with no accounts yet there is no
+ *  session, and creating the very first account must be possible (that is the
+ *  only door a fresh instance has). In open household mode there is no session
+ *  either by design. */
 async function isAdminOrBootstrapping() {
   const mode = await getAuthMode()
   if (mode === 'open') return true
+  if (mode === 'bootstrap') return true
   const session = await getSession()
   return session?.role === 'admin'
 }

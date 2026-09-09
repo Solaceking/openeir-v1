@@ -49,6 +49,12 @@ export const en = {
     password: 'Password',
     signIn: 'Sign in',
     hint: 'Accounts are managed in Settings → Profile & accounts by the instance admin.',
+    createTitle: 'Set up OpenEir',
+    createHint: 'This instance is brand new. Create the first account — it is the admin and can add family accounts later in Settings.',
+    confirmPassword: 'Confirm password',
+    passwordsDontMatch: 'Passwords do not match',
+    createAccount: 'Create account & continue',
+    usernameHint: 'Lowercase letters, digits, . _ - only',
   },
   accounts: {
     title: 'Accounts & login',

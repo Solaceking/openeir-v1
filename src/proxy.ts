@@ -1,12 +1,16 @@
 // OpenEir — access-control proxy (Next.js 16 "proxy" convention).
 // Runs in the Node.js runtime so it can consult SQLite directly.
 //
-// Modes (AppSetting auth_mode):
-//   open     → no active accounts: everything allowed (classic household mode)
-//   accounts → pages require a session; API requests are matched against a
-//              role matrix (admin > caregiver > viewer). Explicitly public
-//              endpoints (token links, agent API, healthcheck) stay open —
-//              they authenticate by their own tokens and are LAN-only by design.
+// Modes (derived in src/lib/auth.ts):
+//   bootstrap → fresh instance, no accounts: everything gated except
+//               first-account creation, sign-in, auth status and the
+//               healthcheck. Default state — public one-click deploys start
+//               LOCKED, never passwordless.
+//   accounts  → pages require a session; API requests are matched against a
+//               role matrix (admin > caregiver > viewer). Explicitly public
+//               endpoints (token links, agent API, healthcheck) stay open —
+//               they authenticate by their own tokens and are LAN-only by design.
+//   open      → household mode, opt-in via OPENEIR_HOUSEHOLD=1 (trusted LANs).
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthMode, resolveSession, SESSION_COOKIE } from '@/lib/auth'
@@ -85,6 +89,26 @@ export async function proxy(req: NextRequest) {
   if (mode === 'open') return NextResponse.next()
 
   const session = await resolveSession(req.cookies.get(SESSION_COOKIE)?.value)
+
+  // ---- bootstrap: fresh instance — lock everything until setup -------------
+  // A VALID SESSION means the instance just left bootstrap (first account was
+  // created seconds ago) — the proxy's mode cache can lag up to 5s behind the
+  // route handlers' (separate module graphs), so trust the session over the
+  // stale cache and fall through to the normal accounts logic.
+  if (mode === 'bootstrap' && !session) {
+    if (pathname.startsWith('/api/')) {
+      const method = req.method.toUpperCase()
+      // self-resolving routes (they answer 401 themselves without a session)
+      if (pathname.startsWith('/api/auth/me') || pathname.startsWith('/api/auth/password')) return NextResponse.next()
+      if (pathname.startsWith('/api/auth/status') || pathname.startsWith('/api/auth/login')) return NextResponse.next()
+      // exactly one door: creating the FIRST account (mode flips to 'accounts' on success)
+      if (pathname.startsWith('/api/auth/accounts') && method === 'POST') return NextResponse.next()
+      if (pathname.startsWith('/api/health')) return NextResponse.next() // docker healthcheck
+      return NextResponse.json({ error: 'Set up OpenEir first — create your account at /login' }, { status: 401 })
+    }
+    if (pathname === '/login') return NextResponse.next()
+    return NextResponse.redirect(new URL('/login', req.url))
+  }
 
   // ---- API ----
   if (pathname.startsWith('/api/')) {

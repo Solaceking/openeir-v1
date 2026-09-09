@@ -66,6 +66,8 @@ Let a platform do the work — deploy straight from this repository:
 
 Both buttons walk you through a guided setup. Two things to give the app and it's home for life: a **persistent volume at `/app/db`** (Railway: *Volume*; DigitalOcean App Platform: *mount path*) and HTTPS — which both platforms terminate for you by default. The referral codes in these buttons support OpenEir's development at no extra cost to you. Full platform recipes (Railway, Render, Fly.io, Coolify, Umbrel, Synology, the Vercel caveat and more): [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
+**Auth is on by default.** The first time anyone opens a fresh deployment they must create the first (admin) account before any data can be read or written — so a public one-click URL never starts passwordless. Running strictly on a trusted LAN and want the classic zero-friction, no-password household mode? Set `OPENEIR_HOUSEHOLD=1` and restart (documented in [.env.example](.env.example) and [docs/SECURITY.md](docs/SECURITY.md)).
+
 ## Quick start (local)
 
 ```bash
@@ -117,7 +119,7 @@ If no provider is configured, Talk says so honestly and deep-links you to Settin
 
 ### Talking to Eir out loud (Talk → live voice)
 
-Voice input runs on whichever **speech recognition** you pick in Settings → Voice & audio: the browser's Web Speech API (stays on-device, Chrome/Edge/Safari) or **your own server** — any OpenAI-compatible transcription endpoint, e.g. a self-hosted [faster-whisper](https://github.com/SYSTRAN/faster-whisper) server (`large-v3` transcribes on a modest box). Replies use server-side Edge neural voices synthesized inside your instance — no keys, no cloud account. Full details: [docs/VOICE_AND_TALK.md](docs/VOICE_AND_TALK.md).
+Voice input runs on whichever **speech recognition** you pick in Settings → Voice & audio: the browser's Web Speech API (Chrome/Edge/Safari) or **your own server** — any OpenAI-compatible transcription endpoint, e.g. a self-hosted [faster-whisper](https://github.com/SYSTRAN/faster-whisper) server (`large-v3` transcribes on a modest box). Replies use server-side **Edge neural voices**: no keys and no account are needed, but the *spoken text* is synthesized by Microsoft's public Edge Read-Aloud endpoint — prefer the on-device browser voices or a self-hosted ear/voice chain if you want zero third-party calls. Full data-flow details: [docs/VOICE_AND_TALK.md](docs/VOICE_AND_TALK.md).
 
 ## Safety, companion, memory, briefing — the ambient layer
 
