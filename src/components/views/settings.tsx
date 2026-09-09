@@ -37,6 +37,7 @@ import { McpSection } from '@/components/settings/mcp'
 import { IntegrationsSection } from '@/components/settings/integrations'
 import { AccountsSection } from '@/components/settings/accounts'
 import { EmailSection, NativePushSection } from '@/components/settings/email-push'
+import { MobilePairCard } from '@/components/settings/mobile-pair'
 import { toast } from 'sonner'
 
 const PACK_CHOICES = [
@@ -162,7 +163,7 @@ export function SettingsView() {
         }
       />
 
-      {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /></div>)}
+      {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /><MobilePairCard /></div>)}
       {section === 'providers' && <ProvidersSection />}
       {section === 'mcp' && <McpSection />}
       {section === 'integrations' && <IntegrationsSection />}

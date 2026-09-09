@@ -1,6 +1,6 @@
 {
   "name": "openeir",
-  "version": "3.8.1",
+  "version": "3.8.2",
   "private": true,
   "description": "OpenEir — self-hosted AI medical assistant with ambient intelligence and an open agent harness. Private by design.",
   "license": "Apache-2.0",

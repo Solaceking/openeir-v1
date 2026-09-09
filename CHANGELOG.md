@@ -1,5 +1,18 @@
 # Changelog
 
+## v3.8.2 — 2026-09-09
+
+### Fixed — the APK actually installs now 📱
+- **v3.8.1's APK was unsigned and Android refused to install it** ("App not installed"). This release ships a **properly signed** APK (RSA 4096, 10-year validity). The signing keystore was generated once, out-of-repo; its four values belong in the repository secrets when CI billing is cleared — the same signature then carries every future update. Sideloading updates requires installing this signed build over (or instead of) any older copy.
+- First real compile of the mobile code also surfaced and fixed 16 Java errors (BridgeActivity API misuse, a missing dp() helper, lifecycle visibility, a nonexistent NotificationCompat.Builder.setTag) — the code had never met a compiler before v3.8.1.
+
+### Added — QR pairing 🔗
+- **Web**: Settings → Profile & accounts → *Pair the mobile app* shows this server's address as a QR code (with copy button). The code carries the origin only — sign-in still happens on your own server; no token leaves the box.
+- **Android**: the onboarding shell has a *Scan QR code* button (camera, QR-only). Scanning fills the address and connects immediately; a `http://` LAN address from a QR auto-enables the plain-HTTP opt-in. Scanning uses an offline ML Kit model bundled in the APK (+~22 MB) — deliberately **no Google Play services required**, so it works on GrapheneOS/CalyxOS like the rest of the app.
+- App versioning is now tag-derived in CI (`vMAJOR.MINOR.PATCH` → versionCode `M*10000+m*100+p`; v3.8.2 → 30802), so every future release updates cleanly over the previous one.
+
+**Full changelog**: https://github.com/Solaceking/openeir/compare/v3.8.1...v3.8.2
+
 ## v3.8.1 — 2026-09-09
 
 ### Changed — CI
