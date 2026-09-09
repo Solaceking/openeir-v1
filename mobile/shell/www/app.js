@@ -41,6 +41,13 @@ function normalizeUrl(raw) {
   }
 }
 
+// Capacitor resolves plugin promises with the raw object the native side sent
+// (PluginResult → result.data). Some older runtimes wrapped it as {value: …};
+// accept both so pairing never breaks on a runtime nuance.
+function unwrap(res) {
+  return res && typeof res === 'object' && res.value !== undefined ? res.value : res;
+}
+
 // Wait for Capacitor's bridge (injected asynchronously on cold start)
 function bridgeReady(timeoutMs) {
   return new Promise(function (resolve) {
@@ -84,10 +91,11 @@ function connect() {
     }
     statusLine.textContent = 'Checking ' + base + ' …';
     bridge.validate({ url: base, allowHttp: $('allow-http').checked })
-      .then(function (res) {
+      .then(function (raw) {
         setBusy(false);
-        if (!res || !res.value || !res.value.ok) {
-          var why = (res && res.value && res.value.error) || 'No response';
+        var res = unwrap(raw);
+        if (!res || !res.ok) {
+          var why = (res && res.error) || 'No response';
           showError('Could not reach an OpenEir server there (' + why + '). Check the address and your connection.');
           return;
         }
@@ -152,10 +160,11 @@ $('scan').addEventListener('click', scanQr);
 bridgeReady().then(function (bridge) {
   if (!bridge) return;
   // Pre-fill a previously used address (user changed their mind / cleared data)
-  bridge.getServer().then(function (res) {
-    if (res && res.value && res.value.url) {
-      $('server-url').value = res.value.url;
-      $('allow-http').checked = !!res.value.allowHttp;
+  bridge.getServer().then(function (raw) {
+    var res = unwrap(raw);
+    if (res && res.url) {
+      $('server-url').value = res.url;
+      $('allow-http').checked = !!res.allowHttp;
     }
   }).catch(function () {});
 });

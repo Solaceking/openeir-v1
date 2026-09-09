@@ -1,5 +1,23 @@
 # Changelog
 
+## v3.8.3 — 2026-09-09
+
+### Fixed — pairing finally works 📶
+- **The app could never connect, on any server** — the onboarding shell read plugin results through a `{value: …}` wrapper that Capacitor does not send, so even a successful server check (HTTP 200 on `/api/auth/status`) was treated as a failure. Every result path now reads the real shape (and still tolerates the wrapped one): validate, connect, get-server prefill.
+- **The plain-HTTP toggle did not respond to taps** — it was a `<span>` wrapping the checkbox, so clicks never reached it. It is a `<label>` now.
+- **The pairing QR could encode the wrong origin** (e.g. a preview or localhost address) — the server now lists its real addresses (public HTTPS first, tailnet via `OPENEIR_PAIR_ORIGINS`) and an admin picks which one the QR encodes.
+
+### Verified
+- Headless-browser test pass on the exact onboarding shell: slider tap toggles the switch; connect succeeds against the raw Capacitor result shape; the wrapped shape still works; failures surface their real HTTP error; the QR flow fills the address and connects in one tap.
+
+### Changed — signing key rotation 🔑
+- New signing keystore (the previous one was lost in a sandbox wipe; its password also briefly hit the public repo and was rotated on principle). Installing v3.8.3 over v3.8.2 requires uninstalling first — one time. Keystore + password delivered out-of-band, now also mirrored gitignored inside the project, and the ignore rule covers `*-PASSWORD.txt` everywhere.
+
+### Also in this release (parallel work)
+- Talk: attachment system (images/PDFs, vision + text extraction) and conversation sessions; voice STT provider presets (Groq/OpenAI/Mistral/Deepgram/OpenRouter/local); proxy fix for mascot/logo.
+
+**Full changelog**: https://github.com/Solaceking/openeir/compare/v3.8.2...v3.8.3
+
 ## v3.8.2 — 2026-09-09
 
 ### Fixed — the APK actually installs now 📱

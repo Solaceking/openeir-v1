@@ -74,3 +74,4 @@ mobile/android/capacitor-cordova-android-plugins
 mobile/android/app/*.keystore
 *.keystore
 /openeir-14b84e7f
+*-PASSWORD.txt
