@@ -54,6 +54,15 @@ If the AI provider is unreachable, the failed send renders an **actionable banne
 - **Two ears, your choice** — Settings → Voice & audio lets you force one (browser-only = maximum privacy, my-server = your own stack) or leave automatic hand-off — Web Speech first (instant interim text). If the browser speech service is missing or unreachable (Firefox, blocked Google endpoints, captive networks), OpenEir switches to the **server ear**: the mic stream is VAD-gated, captured with `MediaRecorder`, and transcribed by your own server (`POST /api/voice/stt` — routed to the STT backend you picked in Settings → Voice & audio: local self-hosted Whisper or your gateway provider; audio is never stored). A dead-air watchdog (mic hears you, no words come back) triggers the same hand-off without you doing anything.
 - **Barge-in** — start talking while Eir is speaking and she stops *mid-sentence* and listens. Two triggers: a sustained mic-RMS gate (with echo cooldown so she doesn't interrupt herself) or a final speech-recognition result arriving during playback.
 - **Sentence streaming** — replies are split into sentences; each is synthesized while the previous one plays (warm prefetch), so perceived latency is one sentence, not one paragraph.
+
+### Latency, honestly
+
+Turn-based voice: expect roughly **1s to hear you**, **5–20s to think** (depends entirely on the chat model you pick), **1–2s to first spoken word**. OpenEir is not a phone-call assistant — it is a deliberate companion that waits its turn. If you need sub-second duplex conversation, this is not that product (yet).
+
+Three honest speed knobs, in order of impact:
+1. **Chat model** — the biggest factor by far. Fast small models answer in seconds; heavyweight reasoning models take tens of seconds. Pick per taste in Settings → AI providers.
+2. **STT routing** (Settings → Voice) — a cloud transcription provider answers in well under a second; a self-hosted CPU whisper takes tens of seconds per clip. Default routes cloud-first with local fallback.
+3. **TTS** — Edge neural voices are fast and free; any OpenAI-compatible TTS endpoint works too.
 - **Hardened against hangs** — every provider call carries a fetch timeout and a 45 s thinking watchdog; a wedged turn recovers to LISTENING with a visible message instead of freezing the session. Echo of Eir's own greeting/replies (speakers without echo cancellation) is dropped by a time-windowed containment check that still lets short answers like "yes" through.
 - **The composer never dies** — mic loss, permission denial, unsupported browser or an embedded iframe without mic access degrade to the typed composer *inside the live session*. The session never kills itself.
 - **Honest errors** — if synthesis or recognition fails structurally, Eir says so in text, and provider/setup errors get the Settings deep-link.
@@ -66,6 +75,8 @@ If the AI provider is unreachable, the failed send renders an **actionable banne
 | Text → speech (fallback) | Browser `SpeechSynthesis` | Device — nothing leaves it | None |
 | **Speech → text** | Web Speech API (`SpeechRecognition`) | Browser (Chrome/Edge/Safari; Chrome/Edge route audio through the browser vendor's speech service) | None |
 | Speech → text (**server ear** fallback) | Any OpenAI-compatible transcription endpoint you configure (e.g. a self-hosted faster-whisper server or a cloud gateway) | **Your server** (`POST /api/voice/stt`) — base64 utterance in, transcript out, nothing persisted. With a self-hosted ear, audio never leaves your machine | Yours |
+
+**Where your audio goes — you decide, in one place.** The Voice settings page shows the active routing order and labels each hop cloud or self-hosted. Default: cloud transcription first (speed), local whisper second (so voice keeps working offline/without keys). Both are one tap to reorder or disable. Nothing is hidden: swap the order and the System Check and the settings UI tell the same story.
 
 **Where your words go — the honest list.** Eir's speech is private-first but not magically air-gapped: picking an **Edge voice** sends the *spoken text* (briefings, replies) to Microsoft's public Edge Read-Aloud service — the text of what is said aloud, never your health database. Chrome/Edge **speech recognition** sends captured audio to the browser vendor's speech service. If you want speech that never involves a third party, use the **browser `SpeechSynthesis` voices** (on-device playback) and a **self-hosted transcription server** — OpenEir works fully that way.
 
