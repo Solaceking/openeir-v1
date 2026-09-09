@@ -10,6 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { getAuthMode, resolveSession, SESSION_COOKIE } from '@/lib/auth'
+import { pluginTokenAuthorizes } from '@/lib/plugin-auth'
 
 export const config = {
   // proxy always runs on the Node.js runtime in Next 16 — matcher only
@@ -40,6 +41,12 @@ const API_RULES: Rule[] = [
   { prefix: '/api/export', role: 'admin' },
   { prefix: '/api/ai/providers', role: 'admin' },
   { prefix: '/api/ai/agents', methods: ['POST'], role: 'admin' },
+  // MCP: the registry is admin-only; the exposed /api/mcp endpoint authenticates by its own token
+  { prefix: '/api/mcp/servers', role: 'admin' },
+  { prefix: '/api/mcp/access', role: 'admin' },
+  { prefix: '/api/mcp', role: 'public' },
+  { prefix: '/api/chat-config', methods: ['PUT'], role: 'admin' },
+  { prefix: '/api/plugins', role: 'admin' },
   // caregiver+ (data mutation)
   { prefix: '/api/ai/story', methods: ['POST'], role: 'edit' },
   { prefix: '/api/ai/whatif', methods: ['POST'], role: 'edit' },
@@ -89,6 +96,9 @@ export async function proxy(req: NextRequest) {
     const rule = matchRule(pathname, method)
     if (rule?.role === 'public') return NextResponse.next()
     if (!session) {
+      // Plugins present their scoped token instead of a user session —
+      // the token only opens the exact route+method pairs its scopes cover.
+      if (await pluginTokenAuthorizes(req, pathname, method)) return NextResponse.next()
       return NextResponse.json({ error: 'Sign in to continue' }, { status: 401 })
     }
     if (rule) {

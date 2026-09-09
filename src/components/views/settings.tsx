@@ -1,14 +1,18 @@
 'use client'
 
-// OpenEir — Settings, regrouped. A visual category grid opens into focused
-// detail panels: Profile & accounts · AI & agents · Health · Alerts &
-// briefing · Voice & audio · Appearance & language · Data & backup ·
-// Emergency & safety. No more eight-tab wall.
+// OpenEir — Settings, regrouped (v3.5 realignment).
+// A visual category grid opens into focused detail panels:
+//   Profile & accounts · Providers (LLM / Audio / Chat) · MCP · Integrations
+//   · Health · Safety (alerts + emergency, one topic) · Appearance & language
+//   · Data & backup.
+// Old section keys (`ai`, `voice`, `alerts`, `emergency`) resolve through
+// SETTINGS_SECTION_ALIASES so stored deep links keep working.
 
 import { useEffect, useState } from 'react'
 import {
   User, Target, Bot, Palette, DatabaseBackup, Check, BellRing, Loader2, Activity, CircleAlert,
-  ArrowLeft, AudioLines, Siren, HeartPulse, UserCog, ChevronRight,
+  ArrowLeft, AudioLines, Siren, HeartPulse, UserCog, ChevronRight, Network, Blocks,
+  MessagesSquare, Cpu,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -20,16 +24,19 @@ import { Slider } from '@/components/ui/slider'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useProfile, useSaveProfile, useAuth } from '@/lib/api-client'
 import { useUI } from '@/lib/store'
-import { SETTINGS_SECTIONS } from '@/lib/nav'
+import { SETTINGS_SECTIONS, resolveSettingsSection } from '@/lib/nav'
 import { useI18n, useT } from '@/lib/i18n'
 import { PageHeader } from '@/components/page-header'
 import { AiProvidersSection } from '@/components/settings/ai-providers'
 import { NotificationsSection } from '@/components/settings/notifications'
 import { MemorySection } from '@/components/settings/memory'
 import { VoicePrefsSection } from '@/components/settings/voice-prefs'
+import { SpeechEngineSection, AudioDevicesCard } from '@/components/settings/speech-engine'
+import { ChatPrefsSection } from '@/components/settings/chat-prefs'
+import { McpSection } from '@/components/settings/mcp'
+import { IntegrationsSection } from '@/components/settings/integrations'
 import { AccountsSection } from '@/components/settings/accounts'
 import { toast } from 'sonner'
-import type { ViewKey } from '@/lib/nav'
 
 const PACK_CHOICES = [
   { code: 'en', label: 'English', ready: true },
@@ -38,24 +45,71 @@ const PACK_CHOICES = [
   { code: 'ar', label: 'العربية (Arabic, RTL)', ready: false },
 ]
 
-type SectionKey = 'profile' | 'ai' | 'health' | 'alerts' | 'voice' | 'appearance' | 'data' | 'emergency'
+type SectionKey = 'profile' | 'providers' | 'mcp' | 'integrations' | 'health' | 'safety' | 'appearance' | 'data'
 
 const SECTION_ICONS: Record<SectionKey, typeof User> = {
   profile: UserCog,
-  ai: Bot,
+  providers: Bot,
+  mcp: Network,
+  integrations: Blocks,
   health: HeartPulse,
-  alerts: BellRing,
-  voice: AudioLines,
+  safety: Siren,
   appearance: Palette,
   data: DatabaseBackup,
-  emergency: Siren,
+}
+
+// ---- Providers page sub-tabs (LLM / Audio / Chat) ----
+type ProviderTab = 'llm' | 'audio' | 'chat'
+
+const PROVIDER_TABS: { key: ProviderTab; label: string; icon: typeof Bot }[] = [
+  { key: 'llm', label: 'LLM providers', icon: Cpu },
+  { key: 'audio', label: 'Audio & speech', icon: AudioLines },
+  { key: 'chat', label: 'Chat behavior', icon: MessagesSquare },
+]
+
+function ProvidersSection() {
+  const [tab, setTab] = useState<ProviderTab>('llm')
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-1.5" role="tablist" aria-label="Provider areas">
+        {PROVIDER_TABS.map(({ key, label, icon: I }) => (
+          <button
+            key={key}
+            role="tab"
+            aria-selected={tab === key}
+            onClick={() => setTab(key)}
+            className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors ${
+              tab === key ? 'border-primary bg-primary text-primary-foreground' : 'bg-background text-muted-foreground hover:bg-accent'
+            }`}
+          >
+            <I className="h-3.5 w-3.5" aria-hidden /> {label}
+          </button>
+        ))}
+      </div>
+      {tab === 'llm' && <AiProvidersSection />}
+      {tab === 'audio' && (
+        <div className="space-y-4">
+          <SpeechEngineSection />
+          <VoicePrefsSection />
+          <AudioDevicesCard />
+        </div>
+      )}
+      {tab === 'chat' && (
+        <div className="space-y-4">
+          <ChatPrefsSection />
+          <MemorySection />
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function SettingsView() {
   const { t } = useT()
   const auth = useAuth()
   const role = auth.data?.role ?? 'admin'
-  const section = useUI((s) => s.settingsSection) as SectionKey | null
+  const rawSection = useUI((s) => s.settingsSection)
+  const section = resolveSettingsSection(rawSection) as SectionKey | null
   const setSection = (k: SectionKey | null) => useUI.getState().setSettingsSection(k)
   const setView = useUI((s) => s.setView)
 
@@ -108,13 +162,13 @@ export function SettingsView() {
       />
 
       {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /></div>)}
-      {section === 'ai' && <AiProvidersSection />}
-      {section === 'health' && (<div className="space-y-4"><TargetsForm /><MemorySection /></div>)}
-      {section === 'alerts' && <NotificationsSection />}
-      {section === 'voice' && <VoicePrefsSection />}
+      {section === 'providers' && <ProvidersSection />}
+      {section === 'mcp' && <McpSection />}
+      {section === 'integrations' && <IntegrationsSection />}
+      {section === 'health' && <TargetsForm />}
+      {section === 'safety' && (<div className="space-y-4"><NotificationsSection /><EmergencySection /></div>)}
       {section === 'appearance' && <AppearanceLanguageSection />}
       {section === 'data' && <DataSection />}
-      {section === 'emergency' && <EmergencySection />}
     </div>
   )
 }
@@ -213,6 +267,7 @@ function Targets({ p }: { p: NonNullable<ReturnType<typeof useProfile>['data']>[
     <Card>
       <CardContent className="space-y-4 p-5">
         <div className="flex items-center gap-2 text-sm font-medium"><Target className="h-4 w-4 text-primary" aria-hidden /> {t('settings.targets')}</div>
+        <p className="text-xs text-muted-foreground">What Eir celebrates and gently warns about — everything else about memory lives under Providers → Chat behavior.</p>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <Label>Systolic target: <b>{sysT}</b> mmHg</Label>
@@ -431,7 +486,7 @@ function SystemCheckCard() {
   )
 }
 
-// ---------------- Emergency & safety (deep link) ----------------
+// ---------------- Safety: emergency deep link (alerts live above) ----------------
 function EmergencySection() {
   const { t } = useT()
   const setView = useUI((s) => s.setView)
@@ -443,7 +498,7 @@ function EmergencySection() {
             <Siren className="h-5 w-5" />
           </span>
           <div>
-            <div className="text-sm font-semibold">{t('nav.safety')}</div>
+            <div className="flex items-center gap-2 text-sm font-semibold">{t('nav.safety')} <BellRing className="h-3.5 w-3.5 text-muted-foreground" aria-hidden /></div>
             <p className="mt-0.5 max-w-md text-xs leading-relaxed text-muted-foreground">
               Emergency contacts, the SOS flow, trusted companions and check-in reminders all live on the Safety page — one place, one tap away.
             </p>

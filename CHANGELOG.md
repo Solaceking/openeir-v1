@@ -1,5 +1,46 @@
 # Changelog
 
+## v3.5 — 2026-09-09
+
+### Settings realignment — Providers / MCP / Integrations
+- **New top-level map**: `Profile & accounts · Providers · MCP · Integrations · Health · Safety · Appearance & language · Data & backup`. The old flat `AI`, `Voice`, `Alerts` and `Emergency` sections resolve through aliases, so muscle memory and stored deep links keep working
+- **Providers** opens with three tabs: **LLM providers** (the previous AI section, unchanged), **Audio & speech**, **Chat behavior**
+- "Connect an AI provider" hints in Talk (and its live-voice mode) now deep-link straight into Providers → LLM
+
+### Chat behavior — the knobs the LLM never had
+- **Persona**: Companion (today's default) / Clinician / Coach / Custom with free-text instructions — always applied *after* Eir's fixed safety identity, so a persona can add tone but never remove the medical guardrails
+- **Reply length**: Short (~60 words) / Balanced (~110, the old hardcoded behavior) / Detailed (~150–300)
+- **Temperature** slider 0–1 (default 0.6 = the previously hardcoded value) with an honest warning above 0.9; wired through the whole provider layer (OpenAI-compatible, Anthropic)
+- Config is server-side (`AppSetting`), so every device on the instance agrees; Memory moved here from Health because it *is* a chat-context knob
+
+### Audio & speech — the speech-engine page
+- **Global model picker**: Automatic / Browser-only / Self-hosted server, with a live "Built-in · detected" badge for this browser and a "best for this device" hint
+- **Model library**: the two engines that actually work today (Web Speech, self-hosted Whisper via any OpenAI-compatible server) marked *Installed*; the road-mapped local ONNX downloads (Moonshine Tiny/Base, Parakeet, Nemotron, Distil-Whisper family) shown with size/speed/accuracy chips as explicit **Coming soon** — never a fake install button
+- **Language** selector (Auto = follow app language, plus 17 spoken languages) applied to browser dictation and the voice-log flow
+- **Audio configuration**: input device picker with a live input-level meter (permission-gated, never recording), output device picker (setSinkId where the browser supports it) and a test-sound chime routed to the chosen speaker
+- Eir's voice (TTS engine, neural voice catalog, rate, auto-speak, preview) keeps its card on the same page
+
+### MCP — both directions
+- **Connect**: register remote MCP servers (streamable HTTP / SSE-framed responses only — no local process spawning in v1); OpenEir performs the handshake, lists every discovered tool with descriptions, tracks connection status, and lets you re-probe or disable per server; credentials stored AES-256-GCM encrypted
+- **Expose**: OpenEir itself is now an MCP server at `/api/mcp` — desktop assistants (Claude Desktop, any MCP client) connect with a personal token (shown once, only its sha256 stored, rotatable) and get four read-only tools: `get_today_summary`, `get_recent_readings`, `get_medications_now`, `get_profile_summary`; every call is audit-logged as an event and rate-limited; bad tokens get a clean 401
+- **WebMCP** browser-native exposure shown honestly as Coming soon
+- New `docs/MCP.md` covers both directions with client config snippets
+
+### Integrations & plugins — scoped tokens, honest roadmap
+- **Plugin registry**: install from a manifest URL (name/version/description/baseUrl/scopes), review the requested permissions in plain English, enable, and OpenEir mints a **scoped access token** shown exactly once (sha256 at rest)
+- **Scope enforcement in the access proxy**: `read:vitals` / `read:meds` / `read:profile` / `read:export` / `post:insights` map to exact route+method pairs; unknown scopes in a manifest are dropped, not granted; disable freezes access, revoke deletes it instantly (verified: revoked token → 401 on the next call)
+- Health ping for plugins that expose a `baseUrl`; per-plugin last-seen tracking
+- **Coming soon** cards for the plugin gallery (one-click installs), calendar sync, WhatsApp/SMS reminders and the Bluetooth device hub — v1 is deliberately manifest-URL only
+- `docs/PLUGINS.md` rewritten around the registry, the manifest format and the scope table
+
+### Safety — one topic, one place
+- Settings **Alerts** and **Emergency** merged into **Safety**: push devices, morning briefing, quiet hours and the one-tap jump to emergency contacts / SOS / companions live on a single page (owner-approved merge)
+
+### Fixes & hygiene
+- `/api/health` now reports the real package version instead of a hardcoded `1.0.0`
+- UI store persists a speech-language preference (`sttLang`, migration to v3 included)
+- Settings breadcrumbs follow the new sections; the role matrix hides Providers/MCP/Integrations from non-admins exactly like the old AI section did
+
 ## v3.4 — 2026-09-09
 
 ### Worldclass shell — the application frame

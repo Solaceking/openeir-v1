@@ -319,6 +319,39 @@ model EmergencyEvent {
   @@index([startedAt])
 }
 
+/// Remote MCP server this instance CONNECTS to (client mode).
+/// v1 scope: streamable HTTP / SSE only — no local process spawning.
+model McpServer {
+  id          String    @id @default(cuid())
+  name        String
+  url         String // https://host/mcp (streamable HTTP endpoint)
+  headerName  String    @default("Authorization") // header carrying the credential
+  tokenEnc    String? // AES-256-GCM encrypted header value
+  enabled     Boolean   @default(true)
+  status      String    @default("untested") // untested | ok | error
+  lastError   String?
+  toolsJson   String    @default("[]") // last known tool list (JSON [{name,description}])
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+/// Registered external plugin (manifest-URL install, scoped access token).
+/// The token is shown once at enable time; only its sha256 is stored.
+model Plugin {
+  id          String    @id @default(cuid())
+  name        String
+  manifestUrl String    @unique
+  version     String    @default("0.0.0")
+  description String    @default("")
+  baseUrl     String? // where the plugin serves its own endpoints (optional)
+  scopes      String    @default("[]") // JSON string[]: read:vitals | read:meds | read:profile | read:export | post:insights
+  tokenHash   String    @unique // sha256 hex of the scoped token
+  enabled     Boolean   @default(true)
+  health      String    @default("unknown") // unknown | healthy | unreachable
+  lastSeenAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
 /// Local account for access control. Roles: admin | caregiver | viewer.
 /// While zero active accounts exist the instance runs in open household mode
 /// (current behavior). Creating the first account switches auth_mode=accounts.

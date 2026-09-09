@@ -110,7 +110,8 @@ export function useVoice() {
         onError: (code, message) => { setError(message); if (code !== 'aborted') setPhase('idle') },
         onEnd: () => { stopRef.current = null },
       },
-      lang,
+      // explicit speech language wins over the app language ('auto' = follow app)
+      useUI.getState().sttLang !== 'auto' ? useUI.getState().sttLang : lang,
     )
   }, [adopt, lang, phase])
 

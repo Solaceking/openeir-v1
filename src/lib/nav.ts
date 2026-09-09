@@ -28,14 +28,29 @@ export function groupOf(view: ViewKey): string {
  *  breadcrumb trail in the app shell. Icons live in the view, not here. */
 export const SETTINGS_SECTIONS: { key: string; label: string; desc: string; adminOnly?: boolean }[] = [
   { key: 'profile', label: 'settings.catProfile', desc: 'settings.catProfileDesc' },
-  { key: 'ai', label: 'settings.catAi', desc: 'settings.catAiDesc', adminOnly: true },
+  { key: 'providers', label: 'settings.catProviders', desc: 'settings.catProvidersDesc', adminOnly: true },
+  { key: 'mcp', label: 'settings.catMcp', desc: 'settings.catMcpDesc', adminOnly: true },
+  { key: 'integrations', label: 'settings.catIntegrations', desc: 'settings.catIntegrationsDesc', adminOnly: true },
   { key: 'health', label: 'settings.catHealth', desc: 'settings.catHealthDesc' },
-  { key: 'alerts', label: 'settings.catNotify', desc: 'settings.catNotifyDesc' },
-  { key: 'voice', label: 'settings.catVoice', desc: 'settings.catVoiceDesc' },
+  { key: 'safety', label: 'settings.catSafety', desc: 'settings.catSafetyDesc' },
   { key: 'appearance', label: 'settings.catAppearance', desc: 'settings.catAppearanceDesc' },
   { key: 'data', label: 'settings.catData', desc: 'settings.catDataDesc', adminOnly: true },
-  { key: 'emergency', label: 'settings.catEmergency', desc: 'settings.catEmergencyDesc' },
 ]
+
+/** v3.4 → v3.5 realignment: old flat section keys keep resolving so stored
+ *  deep links and muscle memory survive the merge. `ai`/`voice` land on the
+ *  Providers page (its default tab is LLM / Audio respectively — see the view). */
+export const SETTINGS_SECTION_ALIASES: Record<string, string> = {
+  ai: 'providers',
+  voice: 'providers',
+  alerts: 'safety',
+  emergency: 'safety',
+}
+
+export function resolveSettingsSection(key: string | null | undefined): string | null {
+  if (!key) return null
+  return SETTINGS_SECTION_ALIASES[key] ?? (SETTINGS_SECTIONS.some((s) => s.key === key) ? key : null)
+}
 
 /** Views a role may open. Viewer is read-only, but Talk stays open —
  *  family should always be able to ask Eir about the day. */

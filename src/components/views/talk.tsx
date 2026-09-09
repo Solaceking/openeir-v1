@@ -203,7 +203,7 @@ export function TalkView() {
       onFinal: (text) => setInput((prev) => `${prev.replace(/\s*(…)?$/, '')} ${text}`.trim()),
       onError: () => setDictating(false),
       onEnd: () => setDictating(false),
-    })
+    }, useUI.getState().sttLang !== 'auto' ? useUI.getState().sttLang : 'en')
   }, [dictating])
 
   const clearThread = useCallback(async () => {
@@ -335,7 +335,7 @@ export function TalkView() {
               size="sm"
               variant="outline"
               className="h-7 shrink-0 gap-1.5 border-metric/50 text-metric-foreground hover:bg-metric/20"
-              onClick={() => setView('settings')}
+              onClick={() => { useUI.getState().setSettingsSection('providers'); setView('settings') }}
             >
               <Settings2 className="h-3.5 w-3.5" aria-hidden /> {t('talk.openSettings')}
             </Button>

@@ -1,7 +1,8 @@
 'use client'
 
-// OpenEir — voice preferences (Settings → Voice & audio).
+// OpenEir — voice preferences (Settings → Providers → Audio → "Eir's voice").
 // Per-device TTS engine, neural voice catalog, speaking rate, auto-readbacks.
+// The STT side lives in speech-engine.tsx; device pickers in its audio card.
 
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, Volume2 } from 'lucide-react'
@@ -17,7 +18,6 @@ import { useMedications } from '@/lib/api-client'
 import { DEFAULT_EDGE_VOICE, useUI } from '@/lib/store'
 import { speak, stopSpeaking } from '@/lib/voice/tts'
 import { useT } from '@/lib/i18n'
-import { SttRoutingEditor } from '@/components/settings/stt-routing'
 
 const PREVIEW_TEXT = 'Blood pressure one twenty-two over seventy-eight, pulse sixty-four. Everything looks steady today.'
 
@@ -26,7 +26,7 @@ interface CatalogVoice { id: string; label: string; gender: 'Female' | 'Male'; a
 export function VoicePrefsSection() {
   const { t } = useT()
   useMedications() // kept warm so the capture sheet opens instantly
-  const { voiceAutoSpeak, voiceRate, voiceEngine, edgeVoice, sttEar, setVoicePrefs } = useUI()
+  const { voiceAutoSpeak, voiceRate, voiceEngine, edgeVoice, setVoicePrefs } = useUI()
   const [voices, setVoices] = useState<CatalogVoice[]>([])
   const [previewing, setPreviewing] = useState(false)
   const previewRef = useRef(false)
@@ -58,6 +58,11 @@ export function VoicePrefsSection() {
   return (
     <Card>
       <CardContent className="space-y-4 p-5">
+        <div className="flex items-center gap-2">
+          <Volume2 className="h-4 w-4 text-primary" aria-hidden />
+          <span className="text-sm font-semibold">Eir&apos;s voice — how she reads back</span>
+        </div>
+
         <div className="flex items-center justify-between gap-4">
           <Label htmlFor="v-autospeak" className="text-sm">{t('voice.autoSpeak')}</Label>
           <Switch id="v-autospeak" checked={voiceAutoSpeak} onCheckedChange={(c) => setVoicePrefs({ voiceAutoSpeak: c })} />
@@ -113,32 +118,6 @@ export function VoicePrefsSection() {
             <span className="text-xs tabular-nums text-muted-foreground">{voiceRate.toFixed(1)}×</span>
           </div>
           <Slider value={[voiceRate]} min={0.6} max={1.6} step={0.1} onValueChange={(x) => setVoicePrefs({ voiceRate: x[0] })} className="mt-2 max-w-xs" aria-label={t('voice.rate')} />
-        </div>
-
-        {/* ---- Speech recognition (STT) provider selection ---- */}
-        <div className="rounded-lg border border-border/60 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <Label className="text-sm">Speech recognition</Label>
-            <span className="text-[11px] text-muted-foreground">which engine types your words</span>
-          </div>
-          <Select value={sttEar} onValueChange={(x) => setVoicePrefs({ sttEar: x as 'auto' | 'webspeech' | 'server' })}>
-            <SelectTrigger className="mt-2"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="auto">Automatic — browser first, server as backup</SelectItem>
-              <SelectItem value="webspeech">Browser only — audio never leaves this device</SelectItem>
-              <SelectItem value="server">My server — self-hosted Whisper / own STT stack</SelectItem>
-            </SelectContent>
-          </Select>
-          <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
-            {sttEar === 'auto' && 'Best of both: the browser engine (if available) transcribes instantly; your server takes over when it is missing or blocked.'}
-            {sttEar === 'webspeech' && 'Maximum privacy: transcription runs in the browser (Chrome/Edge/Safari). Firefox will not be able to listen.'}
-            {sttEar === 'server' && 'Everything you say is sent to your own speech stack (Settings → AI providers route it). Pick the backend under "Transcription order" below.'}
-          </p>
-
-          <div className="mt-3 border-t border-border/60 pt-3">
-            <Label className="text-[11px] uppercase tracking-wide text-muted-foreground">Transcription order (server side)</Label>
-            <SttRoutingEditor />
-          </div>
         </div>
 
         <p className="text-[11px] leading-relaxed text-muted-foreground">{t('voice.privacyNote')}</p>

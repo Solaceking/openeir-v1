@@ -6,7 +6,7 @@ export async function GET() {
   return ok({
     status: 'ok',
     app: 'OpenEir',
-    version: '1.0.0',
+    version: process.env.APP_VERSION ?? 'unknown',
     time: new Date().toISOString(),
   })
 }

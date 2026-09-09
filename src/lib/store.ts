@@ -35,7 +35,9 @@ interface UIState {
   edgeVoice: string
   /** Which ear transcribes the user: 'auto' (webspeech→server fallback) | 'webspeech' (never leaves device) | 'server' (user's own STT stack) */
   sttEar: 'auto' | 'webspeech' | 'server'
-  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate' | 'voiceEngine' | 'edgeVoice' | 'sttEar'>>) => void
+  /** Recognition language: 'auto' (= app language, today: en) or a BCP-47 tag */
+  sttLang: string
+  setVoicePrefs: (p: Partial<Pick<UIState, 'voiceAutoSpeak' | 'voiceRate' | 'voiceEngine' | 'edgeVoice' | 'sttEar' | 'sttLang'>>) => void
 }
 
 export const useUI = create<UIState>()(
@@ -61,16 +63,19 @@ export const useUI = create<UIState>()(
       voiceEngine: 'edge',
       edgeVoice: DEFAULT_EDGE_VOICE,
       sttEar: 'auto',
+      sttLang: 'auto',
       setVoicePrefs: (p) => set(p),
     }),
     {
       name: 'openeir-ui',
-      version: 2,
+      version: 3,
       // v0→v1: the standalone Voice view merged into Talk (voice + chat live together)
+      // v2→v3: settings realignment (Providers/MCP/Integrations) + sttLang preference
       migrate: (persisted) => {
         const p = persisted as Partial<UIState>
         if ((p.view as string) === 'voice' || p.view === undefined) p.view = 'talk'
         p.sttEar = p.sttEar === 'webspeech' || p.sttEar === 'server' ? p.sttEar : 'auto'
+        if (p.sttLang === undefined || p.sttLang === null) p.sttLang = 'auto'
         return p as UIState
       },
       // transient navigation state (settingsSection) never survives a reload
@@ -86,6 +91,7 @@ export const useUI = create<UIState>()(
         voiceEngine: s.voiceEngine,
         edgeVoice: s.edgeVoice,
         sttEar: s.sttEar,
+        sttLang: s.sttLang,
       }) as UIState,
     },
   ),

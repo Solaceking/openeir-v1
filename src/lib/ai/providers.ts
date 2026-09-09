@@ -32,6 +32,12 @@ interface ProviderRow {
   privacyMode: boolean
 }
 
+/** Extra request knobs (Settings → Providers → Chat). Defaults = v3.4 behavior. */
+export interface ChatOptions {
+  /** 0..1, default 0.6 (the previously hardcoded value) */
+  temperature?: number
+}
+
 const TIMEOUT_MS = 45_000
 
 /** OpenAI-style multimodal content parts (accepted by most OpenAI-compatible wire formats). */
@@ -46,7 +52,7 @@ function multimodalContent(m: ChatMessage): string | Array<Record<string, unknow
   ]
 }
 
-async function callOpenAiCompatible(row: ProviderRow, apiKey: string | null, messages: ChatMessage[]): Promise<string> {
+async function callOpenAiCompatible(row: ProviderRow, apiKey: string | null, messages: ChatMessage[], temperature: number): Promise<string> {
   if (!row.baseUrl) throw new Error(`provider ${row.label} has no baseUrl`)
   const res = await fetch(`${row.baseUrl.replace(/\/$/, '')}/chat/completions`, {
     method: 'POST',
@@ -57,7 +63,7 @@ async function callOpenAiCompatible(row: ProviderRow, apiKey: string | null, mes
     body: JSON.stringify({
       model: row.model ?? 'default',
       messages: messages.map((m) => ({ role: m.role, content: multimodalContent(m) })),
-      temperature: 0.6,
+      temperature,
       stream: false,
     }),
     signal: AbortSignal.timeout(TIMEOUT_MS),
@@ -69,7 +75,7 @@ async function callOpenAiCompatible(row: ProviderRow, apiKey: string | null, mes
   return text as string
 }
 
-async function callAnthropic(row: ProviderRow, apiKey: string | null, messages: ChatMessage[]): Promise<string> {
+async function callAnthropic(row: ProviderRow, apiKey: string | null, messages: ChatMessage[], temperature: number): Promise<string> {
   if (!apiKey) throw new Error(`provider ${row.label} needs an API key`)
   const system = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n')
   const rest = messages.filter((m) => m.role !== 'system')
@@ -83,6 +89,7 @@ async function callAnthropic(row: ProviderRow, apiKey: string | null, messages: 
     body: JSON.stringify({
       model: row.model ?? 'claude-3-5-haiku-latest',
       max_tokens: 1200,
+      temperature,
       ...(system ? { system } : {}),
       messages: rest.map((m) => ({
         role: m.role === 'assistant' ? 'assistant' : 'user',
@@ -110,7 +117,11 @@ async function callAnthropic(row: ProviderRow, apiKey: string | null, messages: 
 export async function completeChat(
   purpose: 'insight' | 'story' | 'whatif' | 'report' | 'chat' | 'ocr',
   messages: ChatMessage[],
+  options: ChatOptions = {},
 ): Promise<ChatResult> {
+  const temperature = typeof options.temperature === 'number' && Number.isFinite(options.temperature)
+    ? Math.min(1, Math.max(0, options.temperature))
+    : 0.6
   // First boot on a fresh clone: materialize the built-in provider row without
   // requiring the demo-data seed script. Only when the chain is empty — a
   // user who deliberately disabled everything gets their choice respected.
@@ -131,9 +142,9 @@ export async function completeChat(
       const systemText = messages.filter((m) => m.role === 'system').map((m) => m.content).join('\n')
       const userText = messages.filter((m) => m.role !== 'system').map((m) => m.content).join('\n\n')
       let text: string
-      if (row.adapter === 'anthropic') text = await callAnthropic(row, apiKey, messages)
+      if (row.adapter === 'anthropic') text = await callAnthropic(row, apiKey, messages, temperature)
       else if (row.adapter === 'cli') text = await callCliAgent(row.model ?? 'claude', systemText, userText)
-      else text = await callOpenAiCompatible(row, apiKey, messages) // openai_compatible & ollama
+      else text = await callOpenAiCompatible(row, apiKey, messages, temperature) // openai_compatible & ollama
       const latency = Date.now() - started
       await db.aiUsage.create({
         data: { providerLabel: row.label, model: row.model, purpose, latencyMs: latency, ok: true },

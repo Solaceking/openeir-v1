@@ -1,20 +1,48 @@
-# Settings realignment v2 — proposal (design first, build after approval)
+# Settings realignment v2 — shipped in v3.5
 
-Status: PROPOSAL — awaiting owner sign-off. Nothing here is built yet.
+Status: IMPLEMENTED (owner answered the four open questions on 2026-09-09; built same day).
 Author: release review session, 2026-09-09.
+
+## Owner decisions that shaped the build
+
+1. **"Thoughts"** — was the owner asking for design thoughts, not a feature. No
+   reasoning panel was built; Chat knobs are Persona / Reply length / Temperature (+ Memory).
+2. **Safety** = alerts + emergency merged — **yes**.
+3. **MCP** — remote-only client accepted, PLUS the owner asked that OpenEir itself be
+   *accessible via MCP* → the Expose direction (server mode at `/api/mcp`, token-gated,
+   four read-only tools) shipped alongside the client registry. WebMCP = coming soon.
+4. **Plugins** — manifest-URL installs in v1 confirmed; anything not shipped yet shows
+   as an explicit "Coming soon" card (gallery, calendar, WhatsApp/SMS, Bluetooth hub).
+
+Owner also supplied a speech-engine screenshot from a meeting-notes app as design
+inspiration for the Audio page: global-model picker, model library with
+size/speed/accuracy chips, language selector, device configuration with input meter
+and test sound. Everything we do not actually have yet (local ONNX model downloads)
+is rendered honestly as "Coming soon" — installed rows map to real engines only.
 
 ## What exists today (verified in code)
 
-- Flat settings, 8 sections: `profile · ai · health · alerts · voice · appearance · data · emergency`
-  (`src/components/views/settings.tsx`, keys in `src/lib/nav.ts` SETTINGS_SECTIONS, RBAC via `adminOnly`)
-- `ai` section = BYO provider keys + agent-harness rescan + memory settings
-- `voice` section = TTS prefs (engine/voice/rate/auto-speak) + STT routing (auto/webspeech/server)
-- Chat behavior knobs: **none** — `temperature: 0.6` hardcoded in `src/lib/ai/providers.ts:60`;
-  no persona, no verbosity, no reasoning display
-- Plugins: Tier-1 (external HTTP plugins → `POST /api/agent/insights`) documented in
-  `docs/PLUGINS.md`, no registry/UI/lifecycle. Tier-2 (in-process) = code-level convention only
-- MCP: not present anywhere
-- Roles: admin / caregiver / viewer already gate settings sections
+- Settings sections: `profile · providers (llm|audio|chat) · mcp · integrations ·
+  health · safety · appearance · data` (`src/lib/nav.ts`, RBAC via `adminOnly`).
+  Old keys `ai/voice/alerts/emergency` resolve through `SETTINGS_SECTION_ALIASES`.
+- Providers → LLM: provider chain, preset connect flow, agent harness (unchanged).
+- Providers → Audio: speech-engine card (ear picker w/ detected badges, language
+  incl. auto, engine library, server routing editor), Eir's voice (TTS) card, and
+  an audio-configuration card (input device + live level meter, output device via
+  setSinkId, test sound). `sttLang` preference persisted in the UI store (v3).
+- Providers → Chat: persona presets + custom instructions, reply length
+  (short/balanced/detailed), temperature slider (default 0.6 = the previously
+  hardcoded value; >0.9 warning), stored in `AppSetting` `chat.config`
+  (`src/lib/ai/chat-config.ts`, `PUT /api/chat-config` admin-only), wired into
+  `systemPrompt` + `completeChat` in the chat route. Memory moved here from Health.
+- MCP: client registry (`McpServer` table, `/api/mcp/servers*`, probe via
+  `src/lib/mcp-client.ts`) + server mode (`/api/mcp` JSON-RPC, token via
+  `mcp.access` AppSetting, tools in `src/lib/mcp-tools.ts`, audit via
+  `MCP_TOOL_CALL` EventRecords). Docs: `docs/MCP.md`.
+- Plugins: `Plugin` table, manifest-URL install with scope validation
+  (`/api/plugins*`), scoped-token enforcement in the access proxy
+  (`src/lib/plugin-auth.ts`, `PLUGIN_ROUTE_SCOPES`), instant revocation.
+  Docs: `docs/PLUGINS.md`.
 
 ## Target IA (what you asked for, merged with what must stay)
 

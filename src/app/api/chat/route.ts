@@ -14,6 +14,7 @@ import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
 import { z } from 'zod'
 import { buildHealthContext, contextForPrompt } from '@/lib/ai/context'
 import { completeChat } from '@/lib/ai/providers'
+import { getChatConfig, personaLines, verbosityLine, type ChatConfig } from '@/lib/ai/chat-config'
 import { parseVoiceCommand } from '@/lib/voice/parser'
 import { readbackFor } from '@/lib/voice/types'
 import { parseSchedule } from '@/lib/health/meds'
@@ -115,14 +116,14 @@ async function detectAction(text: string): Promise<DetectedAction | null> {
   return null
 }
 
-function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null, memoriesBlock: string, channel: 'text' | 'voice'): string {
+function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthContext>>>, detected: DetectedAction | null, memoriesBlock: string, channel: 'text' | 'voice', cfg: ChatConfig): string {
   // 'live' = the words arrived through the live spoken session (channel voice).
   // Text messages land here too (typed), so the honest default is text-only.
   const voiceContext: 'live' | 'text' = channel === 'voice' ? 'live' : 'text'
   const lines = [
     'You are Eir, the warm, precise AI health companion inside the user\'s self-hosted OpenEir app (a blood-pressure / glucose / medication companion).',
     'This is a live conversation, WhatsApp-style. Write like a caring, highly competent friend who happens to read clinical data: short paragraphs, plain text, NO markdown headings, NO bullet lists, NO emoji.',
-    'Keep replies under 110 words unless the user explicitly asks for depth. Use their actual numbers when relevant. Ask at most one gentle follow-up question when it helps.',
+    verbosityLine(cfg),
     'You are NOT a doctor and never diagnose. For symptoms that may be urgent (chest pain, severe breathlessness, fainting, stroke signs), tell them plainly to seek emergency care now.',
     'You may gently encourage habits and adherence, celebrate streaks, and explain what their numbers mean in plain language. Never invent numbers you were not given.',
     voiceContext === 'live'
@@ -142,6 +143,9 @@ function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthCont
       `\nThings you remember about the user from previous conversations (use naturally when relevant — do not recite this list, and never claim to remember what is not here):\n${memoriesBlock}`,
     )
   }
+  // User-chosen persona always comes AFTER the fixed identity + safety lines,
+  // so a custom persona can never talk Eir out of the medical guardrails.
+  for (const line of personaLines(cfg)) lines.push(line)
   if (detected) {
     lines.push(
       `The app has ALREADY detected from the user's last message: ${detected.readback} A confirmation card is shown in the chat — acknowledge it warmly in one short clause (e.g. "Got it — 118 over 76, nice numbers") but do NOT ask them to confirm again and do not claim it is saved yet.`,
@@ -178,17 +182,18 @@ export async function POST(req: Request) {
   const ctx = await buildHealthContext()
   if (!ctx) return fail('Complete setup first', 400)
 
+  const chatCfg = await getChatConfig()
   const memories = await retrieveMemories(text)
 
   const messages = [
-    { role: 'system' as const, content: systemPrompt(ctx, detected, memoriesForPrompt(memories), channel) },
+    { role: 'system' as const, content: systemPrompt(ctx, detected, memoriesForPrompt(memories), channel, chatCfg) },
     ...history.map((m) => ({
       role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
       content: m.content,
     })),
   ]
 
-  const result = await completeChat('chat', messages)
+  const result = await completeChat('chat', messages, { temperature: chatCfg.temperature })
   if (!result.ok) {
     // remove the orphan user turn so the thread stays honest after a retry
     await db.chatMessage.delete({ where: { id: userMsg.id } }).catch(() => {})

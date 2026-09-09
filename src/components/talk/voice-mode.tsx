@@ -167,7 +167,7 @@ export function VoiceMode({
                     size="sm"
                     variant="outline"
                     className="h-7 gap-1.5 self-start border-amber-400/40 bg-transparent text-amber-100 hover:bg-amber-400/15 hover:text-white"
-                    onClick={() => { conv.stop(); onCloseRef.current(); setView('settings') }}
+                    onClick={() => { conv.stop(); onCloseRef.current(); useUI.getState().setSettingsSection('providers'); setView('settings') }}
                   >
                     <Settings2 className="h-3.5 w-3.5" aria-hidden /> {t('talk.openSettings')}
                   </Button>
