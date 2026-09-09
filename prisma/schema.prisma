@@ -210,12 +210,15 @@ model ChatMessage {
   id          String   @id @default(cuid())
   role        String // user | assistant
   content     String
-  /// structured extras: detected health intents, provider info, voice provenance
+  /// structured extras: detected health intents, provider info, voice provenance, attachments
   meta        String   @default("{}")
   channel     String   @default("text") // text | voice
+  /// conversation session this message belongs to (sessions archive old threads)
+  sessionId   String   @default("imported")
   createdAt   DateTime @default(now())
 
   @@index([createdAt])
+  @@index([sessionId, createdAt])
 }
 
 /// Key/value store for reminders, language pack cache, etc.

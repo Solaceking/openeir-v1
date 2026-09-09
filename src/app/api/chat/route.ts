@@ -13,7 +13,7 @@ import { db } from '@/lib/db'
 import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
 import { z } from 'zod'
 import { buildHealthContext, contextForPrompt } from '@/lib/ai/context'
-import { completeChat } from '@/lib/ai/providers'
+import { completeChat, type ChatMessage } from '@/lib/ai/providers'
 import { getChatConfig, personaLines, verbosityLine, type ChatConfig } from '@/lib/ai/chat-config'
 import { parseVoiceCommand } from '@/lib/voice/parser'
 import { readbackFor } from '@/lib/voice/types'
@@ -26,6 +26,17 @@ export const maxDuration = 60
 const postSchema = z.object({
   text: z.string().trim().min(1).max(1200),
   channel: z.enum(['text', 'voice']).default('text'),
+  sessionId: z.string().min(1).max(64).optional(),
+  /** optional attachments: images go to the vision path, files arrive as extracted text */
+  images: z.array(z.object({
+    mediaType: z.string().max(64),
+    dataBase64: z.string().min(16).max(6_000_000),
+    name: z.string().max(120).optional(),
+  })).max(3).optional(),
+  fileText: z.object({
+    name: z.string().max(120),
+    excerpt: z.string().max(20_000),
+  }).optional(),
 })
 
 const HISTORY_LIMIT = 16
@@ -155,9 +166,19 @@ function systemPrompt(ctx: NonNullable<Awaited<ReturnType<typeof buildHealthCont
   return lines.join('\n')
 }
 
-export async function GET() {
-  const rows = await db.chatMessage.findMany({ orderBy: { createdAt: 'asc' }, take: 200 })
-  return ok({ messages: rows })
+export async function GET(req: Request) {
+  const url = new URL(req.url)
+  const sessionId = url.searchParams.get('sessionId')
+  // default view = the CURRENT session (newest message's session)
+  let sid = sessionId
+  if (!sid) {
+    const newest = await db.chatMessage.findFirst({ orderBy: { createdAt: 'desc' } })
+    sid = newest?.sessionId ?? null
+  }
+  const rows = sid
+    ? await db.chatMessage.findMany({ where: { sessionId: sid }, orderBy: { createdAt: 'asc' }, take: 200 })
+    : []
+  return ok({ messages: rows, sessionId: sid })
 }
 
 export async function POST(req: Request) {
@@ -166,16 +187,37 @@ export async function POST(req: Request) {
   }
   const parsed = await parseBody(req, postSchema)
   if ('response' in parsed) return parsed.response
-  const { text, channel } = parsed.data
+  const { text, channel, images, fileText } = parsed.data
+
+  // Sessions: explicit sessionId wins; otherwise continue the newest thread.
+  // 'imported' rows (pre-sessions history) are never appended to — the first
+  // new message after this update starts a fresh session.
+  let sessionId = parsed.data.sessionId
+  if (!sessionId) {
+    const newest = await db.chatMessage.findFirst({ orderBy: { createdAt: 'desc' } })
+    const current = newest && newest.sessionId !== 'imported' ? newest.sessionId : null
+    sessionId = current ?? `s-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`
+  }
 
   const detected = await detectAction(text)
 
+  const attachMeta: Record<string, unknown> = {}
+  if (images?.length) {
+    attachMeta.images = images.map((x) => ({ mediaType: x.mediaType, name: x.name ?? 'image', bytes: Math.floor(x.dataBase64.length * 0.75) }))
+  }
+  if (fileText) attachMeta.file = { name: fileText.name, chars: fileText.excerpt.length }
+
   const userMsg = await db.chatMessage.create({
-    data: { role: 'user', content: text, channel, meta: detected ? JSON.stringify({ detected }) : '{}' },
+    data: {
+      role: 'user', content: text, channel, sessionId,
+      meta: detected ? JSON.stringify({ detected, ...attachMeta }) : JSON.stringify(attachMeta),
+    },
   })
 
   const history = await db.chatMessage.findMany({
-    orderBy: { createdAt: 'desc' }, take: HISTORY_LIMIT,
+    where: { sessionId },
+    orderBy: { createdAt: 'desc' },
+    take: HISTORY_LIMIT,
   })
   history.reverse()
 
@@ -185,13 +227,30 @@ export async function POST(req: Request) {
   const chatCfg = await getChatConfig()
   const memories = await retrieveMemories(text)
 
-  const messages = [
-    { role: 'system' as const, content: systemPrompt(ctx, detected, memoriesForPrompt(memories), channel, chatCfg) },
+  // attachment context, honestly labeled for the model
+  const attachmentLines: string[] = []
+  if (images?.length) {
+    attachmentLines.push(`\nThe user attached ${images.length === 1 ? 'an image' : `${images.length} images`} to this message — included as vision inputs. Read device screens (BP monitor, glucometer), documents or photos as relevant. Numbers on device screens must be reported exactly as displayed; the app still shows a confirmation card for anything loggable.`)
+  }
+  if (fileText) {
+    attachmentLines.push(`\nThe user attached the file "${fileText.name}" — its text is reproduced between the markers, up to ~12k characters. Answer about its contents; if it contains readings or lab values, point them out plainly.\n<<<FILE:${fileText.name}\n${fileText.excerpt}\n>>>END FILE`)
+  }
+
+  const messages: ChatMessage[] = [
+    { role: 'system', content: systemPrompt(ctx, detected, memoriesForPrompt(memories), channel, chatCfg) },
     ...history.map((m) => ({
-      role: m.role === 'assistant' ? ('assistant' as const) : ('user' as const),
+      role: (m.role === 'assistant' ? 'assistant' : 'user') as ChatMessage['role'],
       content: m.content,
     })),
   ]
+  // attachments ride the CURRENT turn only
+  if (attachmentLines.length) {
+    messages[messages.length - 1] = {
+      ...messages[messages.length - 1],
+      content: `${text}\n${attachmentLines.join('\n')}`,
+      images: images?.map((x) => ({ mediaType: x.mediaType, dataBase64: x.dataBase64 })),
+    }
+  }
 
   const result = await completeChat('chat', messages, { temperature: chatCfg.temperature })
   if (!result.ok) {
@@ -210,6 +269,7 @@ export async function POST(req: Request) {
       role: 'assistant',
       content: reply,
       channel,
+      sessionId,
       meta: JSON.stringify({ provider: result.providerLabel, model: result.model, detected: detected ?? undefined, memoriesUsed: memories.length }),
     },
   })
@@ -227,12 +287,20 @@ export async function POST(req: Request) {
     userMessageId: userMsg.id,
     reply,
     replyId: assistantMsg.id,
+    sessionId,
     provider: { label: result.providerLabel, model: result.model, latencyMs: result.latencyMs },
     detected,
   })
 }
 
-export async function DELETE() {
+export async function DELETE(req: Request) {
+  // scoped clear: current session only (?all=1 keeps the legacy full wipe)
+  const url = new URL(req.url)
+  const sessionId = url.searchParams.get('sessionId')
+  if (sessionId) {
+    await db.chatMessage.deleteMany({ where: { sessionId } })
+    return ok({ cleared: sessionId })
+  }
   await db.chatMessage.deleteMany({})
-  return ok({ cleared: true })
+  return ok({ cleared: 'all' })
 }

@@ -12,7 +12,7 @@ import Image from 'next/image'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   SendHorizontal, Mic, MicOff, AudioLines, Eraser, RefreshCcw, Sparkles,
-  Settings2, Plus, TrendingUp, Activity, HeartPulse, Pill, X,
+  Settings2, Plus, TrendingUp, Activity, HeartPulse, Pill, X, MessageSquarePlus, History, FileText, ImageIcon,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -26,7 +26,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { MessageBubble, type ChatBubbleMessage } from '@/components/talk/message-bubble'
 import type { ChatAction } from '@/components/talk/action-card'
 import { VoiceMode } from '@/components/talk/voice-mode'
-import { VoiceCapturePanel } from '@/components/talk/voice-capture'
+import { AttachSheet, AttachmentChips, type PendingImage, type PendingFile } from '@/components/talk/attach-sheet'
 import { PageHeader } from '@/components/page-header'
 import { OpenEirLogo } from '@/components/logo'
 import { startDictation, speechRecognitionSupported } from '@/lib/voice/stt'
@@ -68,7 +68,12 @@ export function TalkView() {
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [voiceOpen, setVoiceOpen] = useState(false)
-  const [captureOpen, setCaptureOpen] = useState(false)
+  const [attachOpen, setAttachOpen] = useState(false)
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
+  const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [sessions, setSessions] = useState<Array<{ id: string; count: number; lastAt: string; title: string | null }>>([])
   const [dictating, setDictating] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
   const stopDictationRef = useRef<(() => void) | null>(null)
@@ -143,7 +148,7 @@ export function TalkView() {
 
   // ---- send ----------------------------------------------------------------
   const send = useCallback(async (raw: string, channel: 'text' | 'voice' = 'text') => {
-    const text = raw.trim()
+    const text = raw.trim() || (pendingImages.length || pendingFile ? "Take a look at this" : '')
     if (!text || sending) return
     lastFailedRef.current = null
     setSendError(null)
@@ -155,10 +160,14 @@ export function TalkView() {
     }])
     setSending(true)
     try {
+      const images = pendingImages.length
+        ? pendingImages.map(({ previewUrl, ...rest }) => rest)
+        : undefined
+      const fileText = pendingFile ? { name: pendingFile.name, excerpt: pendingFile.excerpt } : undefined
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, channel }),
+        body: JSON.stringify({ text, channel, sessionId: sessionId ?? undefined, images, fileText }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) {
@@ -166,6 +175,9 @@ export function TalkView() {
         throw new Error(json?.error ?? 'no_provider')
       }
       setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'sent' as const } : m)))
+      if (json.sessionId) setSessionId(json.sessionId)
+      setPendingImages([])
+      setPendingFile(null)
       setMessages((prev) => [...prev, {
         id: json.replyId as string,
         role: 'assistant',
@@ -183,7 +195,7 @@ export function TalkView() {
     } finally {
       setSending(false)
     }
-  }, [sending])
+  }, [sending, pendingImages, pendingFile])
 
   const retry = useCallback(() => {
     if (lastFailedRef.current) void send(lastFailedRef.current)
@@ -206,8 +218,40 @@ export function TalkView() {
     }, useUI.getState().sttLang !== 'auto' ? useUI.getState().sttLang : 'en')
   }, [dictating])
 
+  const loadSessions = useCallback(async () => {
+    try {
+      const r = await fetch('/api/chat/sessions')
+      const j = await r.json()
+      if (j?.sessions) setSessions(j.sessions)
+    } catch { /* non-fatal */ }
+  }, [])
+
+  const openSession = useCallback(async (id: string) => {
+    try {
+      const r = await fetch(`/api/chat?sessionId=${encodeURIComponent(id)}`)
+      const j = await r.json()
+      const rows: ChatBubbleMessage[] = ((j?.messages ?? []) as WireMessage[]).map((row) => {
+        let meta: { detected?: ChatAction; provider?: ChatBubbleMessage['provider'] } = {}
+        try { meta = JSON.parse(row.meta ?? '{}') } catch { /* {} */ }
+        return {
+          id: row.id,
+          role: row.role === 'assistant' ? 'assistant' : 'user',
+          content: row.content,
+          channel: row.channel === 'voice' ? 'voice' : 'text',
+          createdAt: row.createdAt,
+          status: 'sent' as const,
+          detected: row.role === 'assistant' ? (meta.detected ?? null) : null,
+          provider: meta.provider ?? null,
+        }
+      })
+      setSessionId(id)
+      setMessages(rows)
+      setHistoryOpen(false)
+    } catch { /* non-fatal */ }
+  }, [])
+
   const clearThread = useCallback(async () => {
-    await fetch('/api/chat', { method: 'DELETE' }).catch(() => {})
+    await fetch(`/api/chat?sessionId=${encodeURIComponent(sessionId ?? '')}`, { method: 'DELETE' }).catch(() => {})
     setMessages([])
     setClearOpen(false)
   }, [])
@@ -222,18 +266,26 @@ export function TalkView() {
         subtitle={t('talk.subtitle')}
         icon={OpenEirLogo}
         actions={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label={t('talk.options')}>
-                <Eraser className="h-4.5 w-4.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setClearOpen(true)} className="text-destructive focus:text-destructive">
-                <Eraser className="mr-2 h-4 w-4" /> {t('talk.clear')}
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" aria-label={t('talk.newChat')} title={t('talk.newChat')} onClick={() => { setSessionId(null); setMessages([]); }}>
+              <MessageSquarePlus className="h-4.5 w-4.5" />
+            </Button>
+            <Button variant="ghost" size="icon" aria-label={t('talk.history')} title={t('talk.history')} onClick={() => { void loadSessions(); setHistoryOpen(true) }}>
+              <History className="h-4.5 w-4.5" />
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" aria-label={t('talk.options')}>
+                  <Eraser className="h-4.5 w-4.5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setClearOpen(true)} className="text-destructive focus:text-destructive">
+                  <Eraser className="mr-2 h-4 w-4" /> {t('talk.clear')}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         }
       />
 
@@ -345,40 +397,22 @@ export function TalkView() {
 
       {/* composer */}
       <div className="pt-3">
+        <AttachmentChips
+          images={pendingImages}
+          file={pendingFile}
+          onRemoveImage={(i) => setPendingImages((prev) => prev.filter((_, x) => x !== i))}
+          onRemoveFile={() => setPendingFile(null)}
+        />
         <div className="flex items-end gap-2">
-          {/* log by voice — consolidated capture lives here */}
-          <Sheet open={captureOpen} onOpenChange={setCaptureOpen}>
-            <SheetTrigger asChild>
-              <button
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-secondary text-secondary-foreground transition-transform hover:scale-105 active:scale-95"
-                aria-label={t('talk.attach')}
-                title={t('talk.attach')}
-              >
-                <Plus className="h-5 w-5" aria-hidden />
-              </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-safe pt-3 sm:max-w-lg sm:mx-auto">
-              <SheetHeader className="pb-1 pt-0">
-                <SheetTitle className="flex items-center justify-between gap-2 text-base">
-                  <span className="flex items-center gap-2">
-                    <AudioLines className="h-4.5 w-4.5 text-primary" aria-hidden />
-                    {t('talk.captureTitle')}
-                  </span>
-                  <button
-                    onClick={() => setCaptureOpen(false)}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted-foreground transition-colors hover:bg-accent"
-                    aria-label={t('common.close')}
-                  >
-                    <X className="h-4 w-4" aria-hidden />
-                  </button>
-                </SheetTitle>
-              </SheetHeader>
-              <p className="pb-3 text-xs text-muted-foreground">{t('talk.attachHint')}</p>
-              <div className="max-h-[68vh] overflow-y-auto pb-2 scroll-slim">
-                <VoiceCapturePanel onDone={() => setCaptureOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
+          {/* attach — image (photo/scan) or file (pdf/text) */}
+          <button
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-secondary text-secondary-foreground transition-transform hover:scale-105 active:scale-95"
+            onClick={() => setAttachOpen(true)}
+            aria-label={t('talk.attach')}
+            title={t('talk.attach')}
+          >
+            <Plus className="h-5 w-5" aria-hidden />
+          </button>
 
           <div className="flex min-w-0 flex-1 items-end gap-1 rounded-3xl border bg-card p-1.5 focus-within:ring-2 focus-within:ring-primary/35">
             <textarea
@@ -428,7 +462,7 @@ export function TalkView() {
             size="icon"
             className="h-11 w-11 shrink-0 rounded-full transition-transform hover:scale-105 active:scale-95"
             onClick={() => void send(input)}
-            disabled={!input.trim() || sending}
+            disabled={(!input.trim() && !pendingImages.length && !pendingFile) || sending}
             aria-label={t('talk.send')}
           >
             <SendHorizontal className="h-4.5 w-4.5" aria-hidden />
@@ -437,6 +471,45 @@ export function TalkView() {
       </div>
 
       <VoiceMode open={voiceOpen} onClose={() => setVoiceOpen(false)} onTurn={appendTurn} />
+
+      <AttachSheet
+        open={attachOpen}
+        onOpenChange={setAttachOpen}
+        onImage={(img) => setPendingImages((prev) => [...prev, img].slice(0, 3))}
+        onFile={(f) => setPendingFile(f)}
+      />
+
+      {historyOpen && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-label={t('talk.history')}>
+          <button className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" aria-label={t('common.close')} onClick={() => setHistoryOpen(false)} />
+          <div className="relative max-h-[70vh] w-full overflow-y-auto rounded-t-3xl border bg-card p-4 shadow-xl sm:max-w-md sm:rounded-3xl scroll-slim">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold"><History className="h-4 w-4 text-primary" /> {t('talk.history')}</h2>
+              <button onClick={() => setHistoryOpen(false)} className="flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted-foreground hover:bg-accent" aria-label={t('common.close')}>
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            {sessions.length === 0 && <p className="py-4 text-center text-xs text-muted-foreground">{t('talk.historyEmpty')}</p>}
+            <div className="space-y-1.5">
+              {sessions.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => void openSession(s.id)}
+                  className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors hover:border-primary/40 ${s.id === sessionId ? 'border-primary/50 bg-primary/5' : 'bg-background'}`}
+                >
+                  <FileText className="h-4 w-4 shrink-0 text-primary/70" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-xs font-medium">{s.title ?? t('talk.untitledChat')}</span>
+                    <span className="block text-[10px] text-muted-foreground">
+                      {new Date(s.lastAt).toLocaleDateString([], { month: 'short', day: 'numeric' })} · {s.count} {t('talk.messagesCount')}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
         <AlertDialogContent>
