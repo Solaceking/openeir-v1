@@ -24,6 +24,11 @@ async function j<T>(url: string, init?: RequestInit): Promise<T | null> {
 interface BriefingGet { date: string; deliveredToday: boolean; config: { enabled: boolean; time: string; push: boolean } }
 interface MemoryState { lastReflection: string | null; config: { autoReflect: boolean } }
 
+// Per-device guard: the briefing toast may fire at most once per calendar day,
+// even if the server keeps reporting "not delivered" (stale cache, old server,
+// clock skew). The manual "push to my devices" button is not affected.
+const BRIEFING_GUARD = 'briefing.autoDelivered'
+
 export function AmbientScheduler() {
   const qc = useQueryClient()
   const busyRef = useRef(false)
@@ -40,14 +45,20 @@ export function AmbientScheduler() {
 
         // --- Morning briefing -------------------------------------------
         const b = await j<BriefingGet>('/api/briefing')
-        if (b && b.config.enabled && !b.deliveredToday) {
+        const validTime = typeof b?.config?.time === 'string' && b.config.time.includes(':')
+        const alreadyToasted = typeof localStorage !== 'undefined' && localStorage.getItem(BRIEFING_GUARD) === today
+        if (b && b.config?.enabled && validTime && !b.deliveredToday && !alreadyToasted) {
           const [bh, bm] = b.config.time.split(':').map(Number)
           const dueMinutes = (bh ?? 8) * 60 + (bm ?? 0)
           const nowMinutes = now.getHours() * 60 + now.getMinutes()
           if (nowMinutes >= dueMinutes) {
             const res = await j<{ briefing: { headline: string } }>('/api/briefing', { method: 'POST', body: JSON.stringify({ push: b.config.push }) })
             if (res && !disposed) {
-              toast.info(`Morning briefing ready — ${res.briefing.headline}`, { description: 'It is on your dashboard, and your devices were notified.' })
+              try { localStorage.setItem(BRIEFING_GUARD, today) } catch { /* private mode — server 409 still guards */ }
+              toast.info(`Morning briefing ready — ${res.briefing.headline}`, {
+                id: `briefing-${today}`, // sonner collapses duplicates by id
+                description: 'It is on your dashboard, and your devices were notified.',
+              })
               qc.invalidateQueries({ queryKey: ['briefing'] })
             }
           }
@@ -56,13 +67,15 @@ export function AmbientScheduler() {
         // --- Nightly reflection ------------------------------------------
         if (now.getHours() >= 21) {
           const m = await j<MemoryState>('/api/memory')
-          if (m && m.config.autoReflect && m.lastReflection !== today) {
+          if (m && m.config?.autoReflect && m.lastReflection !== today) {
             const res = await j<{ created: boolean }>('/api/memory/reflect', { method: 'POST' })
             if (res?.created && !disposed) {
               qc.invalidateQueries({ queryKey: ['memory'] })
             }
           }
         }
+      } catch {
+        // Never let a background tick crash the page or log unhandled rejections.
       } finally {
         busyRef.current = false
       }

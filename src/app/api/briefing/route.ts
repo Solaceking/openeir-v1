@@ -1,7 +1,10 @@
 // OpenEir — Morning Briefing API.
 // GET  → today's briefing, built fresh from the shared health context.
-// POST → deliver: optional push to all devices + mark "delivered today"
-//        (idempotent — one delivery per calendar day).
+// POST → deliver: optional push to all devices + mark "delivered today".
+//        Idempotency is ENFORCED here on the server: a second automatic
+//        delivery for the same calendar day is rejected with 409, so a stale
+//        tab, a scheduler race or an old client can never spam devices or
+//        toasts. Manual re-sends pass force:true and always go through.
 
 import { db } from '@/lib/db'
 import { ok, fail, parseBody, rateLimit, clientKey } from '@/lib/api-utils'
@@ -13,7 +16,7 @@ import { z } from 'zod'
 
 export const dynamic = 'force-dynamic'
 
-const deliverSchema = z.object({ push: z.boolean().default(true) })
+const deliverSchema = z.object({ push: z.boolean().default(true), force: z.boolean().default(false) })
 
 function todayKey(d = new Date()) {
   return d.toISOString().slice(0, 10)
@@ -53,6 +56,13 @@ export async function POST(req: Request) {
 
   const ctx = await buildHealthContext()
   if (!ctx) return fail('Complete setup first', 400)
+
+  // Single source of truth: one automatic delivery per calendar day.
+  const prior = await db.appSetting.findUnique({ where: { key: 'briefing.lastDelivered' } })
+  if (prior?.value === todayKey() && !parsed.data.force) {
+    return fail('Briefing was already delivered today', 409)
+  }
+
   const meds = await db.medication.findMany({ where: { active: true } })
   const logs = await db.medicationLog.findMany({ where: { date: todayKey() } })
   const todayDoses = meds.flatMap((m) => {

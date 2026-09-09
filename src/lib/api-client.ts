@@ -399,7 +399,13 @@ export function useBriefing() {
 export function useDeliverBriefing() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: () => j<{ briefing: BriefingResponse['briefing']; push: { sent: number } | null }>('/api/briefing', { method: 'POST', body: JSON.stringify({ push: true }) }),
+    mutationFn: async () => {
+      // force:true — manual re-sends are allowed even after the automatic
+      // morning delivery (the server enforces idempotency for auto sends).
+      const r = await j<{ briefing: BriefingResponse['briefing']; push: { sent: number } | null }>('/api/briefing', { method: 'POST', body: JSON.stringify({ push: true, force: true }) })
+      if (!r) throw new Error('Could not deliver the briefing right now')
+      return r
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing'] }); toast.success('Briefing delivered — check your notifications') },
     onError: (e: Error) => toast.error(e.message),
   })

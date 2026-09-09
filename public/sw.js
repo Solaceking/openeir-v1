@@ -1,10 +1,10 @@
 /* OpenEir service worker — offline-first shell, network-first data.
    Strategy:
    - App shell & static assets: stale-while-revalidate
+   - Navigations: NETWORK-first (users get new builds immediately), cache/offline fallback
    - API GETs: network-first with cache fallback (last-known data offline)
-   - Navigations: cached shell, then network
    - POSTs are queued client-side (see src/lib/offline.ts) */
-const VERSION = 'openeir-v3'
+const VERSION = 'openeir-v4'
 const SHELL = ['/', '/manifest.webmanifest', '/offline.html']
 
 self.addEventListener('install', (event) => {
@@ -40,7 +40,22 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  // Static & pages: stale-while-revalidate
+  // Navigations: network-first — a deployed update reaches users on their
+  // next reload; the cached shell only serves when the network is gone.
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((res) => {
+          const copy = res.clone()
+          caches.open(VERSION).then((c) => c.put(request, copy))
+          return res
+        })
+        .catch(() => caches.match(request).then((hit) => hit ?? caches.match('/offline.html')))
+    )
+    return
+  }
+
+  // Static assets: stale-while-revalidate
   event.respondWith(
     caches.match(request).then((hit) => {
       const fetching = fetch(request)

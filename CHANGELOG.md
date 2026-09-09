@@ -1,5 +1,20 @@
 # Changelog
 
+## v3.6 — 2026-09-09
+
+### Fixed — the "Morning briefing ready" notification could repeat all day
+- Root cause: briefing delivery idempotency lived in the *client* (it checked "delivered today?" then asked the server to deliver). The server's POST — despite its comment — enforced nothing, so a stale tab, a scheduler race or an older client could re-deliver (and re-toast, and re-push devices) indefinitely
+- **POST /api/briefing now enforces one automatic delivery per calendar day server-side**; duplicate attempts get `409 Briefing was already delivered today` with no push, no toast, no side effects. Verified: auto → 200, auto-duplicate → 409, manual `force` → 200
+- The dashboard's **manual "Push to my devices" button still always delivers** (it sends `force: true`) and now reports honestly if delivery fails
+- Client scheduler hardened: at most one briefing toast per device per calendar day (localStorage guard, survives lying caches), sonner toast deduped by id, background tick wrapped so it can never throw unhandled, malformed schedule times ignored safely
+
+### Fixed — PWA could keep running old code
+- The service worker served cached shells *stale-first* and its cache version had never been bumped, so a long-lived installed tab could keep executing an old build across releases
+- Navigations are now **network-first** (an update reaches users on their next reload; cached shell only serves when offline) and the cache version was bumped, purging every stale cache on next launch
+
+### Housekeeping
+- Landing-repo gitlink removed from the repo history tip (the landing page lives in its own `openeir-14b84e7f` repository)
+
 ## v3.5 — 2026-09-09
 
 ### Settings realignment — Providers / MCP / Integrations
