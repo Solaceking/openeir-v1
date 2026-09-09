@@ -1,0 +1,4 @@
+# Bun runtime config — test preload isolates a scratch SQLite database so
+# `bun test` never touches the real health record (db/custom.db).
+[test]
+preload = ["./tests/_preload.ts"]

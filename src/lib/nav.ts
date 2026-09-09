@@ -30,6 +30,7 @@ export const SETTINGS_SECTIONS: { key: string; label: string; desc: string; admi
   { key: 'profile', label: 'settings.catProfile', desc: 'settings.catProfileDesc' },
   { key: 'providers', label: 'settings.catProviders', desc: 'settings.catProvidersDesc', adminOnly: true },
   { key: 'mcp', label: 'settings.catMcp', desc: 'settings.catMcpDesc', adminOnly: true },
+  { key: 'agent', label: 'settings.catAgent', desc: 'settings.catAgentDesc', adminOnly: true },
   { key: 'integrations', label: 'settings.catIntegrations', desc: 'settings.catIntegrationsDesc', adminOnly: true },
   { key: 'health', label: 'settings.catHealth', desc: 'settings.catHealthDesc' },
   { key: 'safety', label: 'settings.catSafety', desc: 'settings.catSafetyDesc' },

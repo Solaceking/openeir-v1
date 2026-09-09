@@ -75,3 +75,9 @@ mobile/android/app/*.keystore
 *.keystore
 /openeir-14b84e7f
 *-PASSWORD.txt
+
+# agent eval/test scratch databases (hermetic — never real data)
+/evals/.scratch.db
+/tests/.scratch.db
+__pycache__/
+.pytest_cache/

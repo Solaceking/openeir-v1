@@ -16,6 +16,14 @@ const nextConfig: NextConfig = {
   // msedge-tts opens its own WebSocket to the Edge speech service — keep it
   // external so the standalone bundle doesn't try to inline its transport.
   serverExternalPackages: ["tesseract.js", "msedge-tts"],
+  // Opt-in realtime voice agent (docker compose --profile voice). The
+  // browser posts its WebRTC offer straight through to the Pipecat container
+  // — no separate signaling infra. Absent in the default deployment.
+  async rewrites() {
+    return process.env.VOICE_AGENT_URL
+      ? [{ source: "/voice-agent/:path*", destination: `${process.env.VOICE_AGENT_URL}/:path*` }]
+      : []
+  },
 };
 
 export default nextConfig;

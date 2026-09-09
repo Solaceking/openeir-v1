@@ -1,5 +1,40 @@
 # Changelog
 
+## v3.9.0 — 2026-09-09
+
+### Added — Eir can now act on your data (safely) 🤖
+
+**Phase 1 — real tool-calling.** Eir is no longer limited to talking about health data: the chat layer now has native function-calling on both supported provider families (Anthropic `tool_use`, OpenAI-compatible `tool_calls`), wired to the app's own business logic — never a re-implementation. A shared write path (`src/lib/health/record.ts`) now serves the REST routes, the chat tools, and the voice agent, so duplicate-guarding, stock decrements and event emission live in exactly one place.
+
+- **The one rule held intact**: write tools never execute from a model call. Every write (BP, glucose, medication taken/skipped, lifestyle, non-critical settings) only *proposes* a `PendingAction` that a human confirms on a card — the original BP/glucose/med confirmation pattern, generalized to everything. Confirmations are idempotent (a double-tap or a race with a spoken "yes" writes exactly once), expire after 24 h, and re-check permissions at confirm time.
+- **Read tools** (latest reading, history, trends, medication schedule, upcoming doses, emergency contacts, insights, doctor-report summary) execute immediately and are audited.
+- **The deterministic parser stays** as the fast-path/belt-and-suspenders for the three core intents, and its detections now flow through the same audited confirmation pipeline as the model's proposals.
+- **Full audit trail** — every tool call (tool, args, the model's stated reason, provider/model used, latency, outcome: executed / pending / confirmed / declined / refused / error) lands in a queryable **Settings → AI agent** view with per-tool usage stats. Destructive-category calls are high-priority events.
+- **Prompt-injection hardening** — retrieved content (attached files, OCR'd images, long-term memories) is fenced as *data, never instructions*; write tools are only offered while processing a live authenticated turn, and the executor re-checks that gate even if the model is tricked. Covered by a dedicated test suite.
+- **Graceful degradation** — harnesses and tool-less models are skipped down the provider chain; if no provider can call tools, chat falls back to today's behavior with an honest in-chat note, and the parser fast-path keeps the core intents working offline.
+
+### Added — realtime voice, opt-in (Pipecat) 🎙️
+- New optional service `mini-services/voice-agent/` (Python/Pipecat) behind a compose profile: `docker compose --profile voice up -d` — the default deployment stays exactly as light as before.
+- Live, interruptible conversation with **server-side VAD barge-in** (just start talking while Eir speaks). STT/TTS are **pluggable from app settings** (local Whisper via your existing whisper server, self-hosted Deepgram; Edge neural voice via the app's own cached TTS, Piper offline, OpenAI-compatible, Deepgram Aura).
+- The container holds **no business logic**: every turn flows through the app's internal RPC (`/api/agent/rpc`, service-token auth, fail-closed) into the same engine as text chat — one brain, three doors (REST, SSE, voice).
+- **Spoken confirmations keep the bar**: a proposed write is asked as a clear yes/no question; a conservative grammar classifies the answer (anything ambiguous is re-asked once, then falls back to the visual card); a spoken "yes" hits the same audited, idempotent confirm path. High-risk actions still require the typed CONFIRM phrase — voice can propose, only the card can authorize. Grammar + flow are unit-tested.
+- **"Live conversation" is a deliberate opt-in** (Settings → Providers → Audio, off by default): push-to-talk stays the default, predictable experience — a real consideration for elderly users and caregivers.
+
+### Added — agent governance 🛡️
+- **Settings → AI agent**: permission categories (read: always on; writes: confirm + audit, toggleable; destructive: ships **off**, needs a typed CONFIRM phrase, fully audited), pending confirmations with one-tap resolve, the complete audit trail, and per-tool usage/latency stats.
+- First destructive tools ship inside the disabled category (`deleteBpReading`, `deleteGlucoseReading`) — the mechanism is live, the default is no.
+
+### Added — world-class details ✨
+- **Streaming replies**: `/api/chat/stream` (SSE) with token-by-token rendering, live tool-status chips ("Checking latest reading · 120 ms") and confirmation cards appearing while tokens still stream. The Talk view streams when available and falls back to the buffered endpoint transparently.
+- **Eval suite**: 19 deterministic parser fixtures always run (CI backstop), plus realistic tool-choice phrasings per configured provider (`bun run eval:tools`) — a provider/model swap that silently breaks intent detection now fails loudly.
+- **CI workflow** (lint + types + hermetic tests + evals; note: GitHub Actions remains billing-blocked on this account — it will activate when billing is cleared).
+- **Test infrastructure**: `bun test` with a hermetic scratch SQLite (36 tests — the injection/confirm-flow suite is disproportionately thorough by design, covering the live-gate, idempotent execution, permission gating, expiry, and the high-risk phrase).
+- All new user-facing strings route through the i18n system (`en.ts`), ready for language packs.
+
+**For deployers**: set `OPENEIR_SERVICE_TOKEN` in `.env` before enabling the voice profile (same value on the app service); the app refuses RPC when it is unset. Nothing else changes for the default `docker compose up`.
+
+**Full changelog**: https://github.com/Solaceking/openeir/compare/v3.8.3...v3.9.0
+
 ## v3.8.3 — 2026-09-09
 
 ### Fixed — pairing finally works 📶

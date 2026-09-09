@@ -40,6 +40,10 @@ export interface ConversationTurn {
   role: 'user' | 'assistant'
   content: string
   detected?: unknown
+  /** server-backed pending actions (agent proposals awaiting confirmation) */
+  pending?: unknown
+  /** transparent tool use events for the bubble strip */
+  toolEvents?: unknown
   provider?: { label: string; model?: string | null; latencyMs: number }
 }
 
@@ -272,8 +276,10 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
       }
       const reply: string = json.reply ?? ''
       const detected = json.detected ?? undefined
+      const pending = json.pending ?? undefined
+      const toolEvents = json.toolEvents ?? undefined
       const provider = json.provider ?? undefined
-      onTurnRef.current({ role: 'assistant', content: reply, detected, provider })
+      onTurnRef.current({ role: 'assistant', content: reply, detected, pending, toolEvents, provider })
       if (myGen !== genRef.current) return
 
       setBoth('speaking')

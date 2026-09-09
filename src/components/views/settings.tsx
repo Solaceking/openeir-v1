@@ -12,8 +12,7 @@ import { useEffect, useState } from 'react'
 import {
   User, Target, Bot, Palette, DatabaseBackup, Check, BellRing, Loader2, Activity, CircleAlert,
   ArrowLeft, AudioLines, Siren, HeartPulse, UserCog, ChevronRight, Network, Blocks,
-  MessagesSquare, Cpu,
-} from 'lucide-react'
+  MessagesSquare, Cpu, Wrench,} from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -38,6 +37,8 @@ import { IntegrationsSection } from '@/components/settings/integrations'
 import { AccountsSection } from '@/components/settings/accounts'
 import { EmailSection, NativePushSection } from '@/components/settings/email-push'
 import { MobilePairCard } from '@/components/settings/mobile-pair'
+import { AgentSection } from '@/components/settings/agent'
+import { LiveVoiceCard } from '@/components/settings/live-voice'
 import { toast } from 'sonner'
 
 const PACK_CHOICES = [
@@ -47,12 +48,13 @@ const PACK_CHOICES = [
   { code: 'ar', label: 'العربية (Arabic, RTL)', ready: false },
 ]
 
-type SectionKey = 'profile' | 'providers' | 'mcp' | 'integrations' | 'health' | 'safety' | 'appearance' | 'data'
+type SectionKey = 'profile' | 'providers' | 'mcp' | 'agent' | 'integrations' | 'health' | 'safety' | 'appearance' | 'data'
 
 const SECTION_ICONS: Record<SectionKey, typeof User> = {
   profile: UserCog,
   providers: Bot,
   mcp: Network,
+  agent: Wrench,
   integrations: Blocks,
   health: HeartPulse,
   safety: Siren,
@@ -92,6 +94,7 @@ function ProvidersSection() {
       {tab === 'audio' && (
         <div className="space-y-4">
           <SpeechEngineSection />
+          <LiveVoiceCard />
           <VoicePrefsSection />
           <AudioDevicesCard />
         </div>
@@ -165,6 +168,7 @@ export function SettingsView() {
 
       {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /><MobilePairCard /></div>)}
       {section === 'providers' && <ProvidersSection />}
+      {section === 'agent' && <AgentSection />}
       {section === 'mcp' && <McpSection />}
       {section === 'integrations' && <IntegrationsSection />}
       {section === 'health' && <TargetsForm />}

@@ -1,24 +1,14 @@
-import { db } from '@/lib/db'
+// Thin wrapper over the shared write path (src/lib/health/record.ts).
+
 import { ok, parseBody } from '@/lib/api-utils'
-import { z } from 'zod'
-import { emitEvent } from '@/lib/events'
+import { upsertLifestyleLog, lifestyleInputSchema } from '@/lib/health/record'
 
 export const dynamic = 'force-dynamic'
-
-const schema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  mood: z.number().int().min(1).max(5).nullable().optional(),
-  energy: z.number().int().min(1).max(5).nullable().optional(),
-  sleepQuality: z.number().int().min(1).max(5).nullable().optional(),
-  stress: z.number().int().min(1).max(5).nullable().optional(),
-  weightKg: z.number().min(25).max(400).nullable().optional(),
-  sodiumHigh: z.boolean().nullable().optional(),
-  notes: z.string().max(500).nullable().optional(),
-})
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
   const days = Math.min(365, Number(url.searchParams.get('days') ?? 60))
+  const { db } = await import('@/lib/db')
   const since = new Date()
   since.setDate(since.getDate() - days)
   const rows = await db.lifestyleLog.findMany({
@@ -29,16 +19,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  const parsed = await parseBody(req, schema)
+  const parsed = await parseBody(req, lifestyleInputSchema)
   if ('response' in parsed) return parsed.response
-  const d = parsed.data
-  const { date, ...rest } = d
-  const clean = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined))
-  const log = await db.lifestyleLog.upsert({
-    where: { date },
-    create: { date, ...clean },
-    update: clean,
-  })
-  void emitEvent('PATTERN_CHECK', { kind: 'lifestyle' }, 'low')
-  return ok({ log })
+  const result = await upsertLifestyleLog(parsed.data)
+  return ok({ log: result.row })
 }

@@ -23,6 +23,7 @@ services:
       APP_KEY: ${APP_KEY:-}              # optional; auto-generated into the db volume when empty
       REALTIME_URL: http://realtime:3031 # internal control channel
       NEXT_TELEMETRY_DISABLED: "1"
+      OPENEIR_SERVICE_TOKEN: ${OPENEIR_SERVICE_TOKEN:-} # voice-agent RPC auth (fail-closed when unset)
     volumes:
       - openeir-data:/app/db
     depends_on:
@@ -85,6 +86,30 @@ services:
       AGENT_INTERVAL_MINUTES: "60"
     depends_on:
       - app
+
+  # Opt-in realtime voice agent (Pipecat) — live, interruptible spoken
+  # conversation that calls the SAME tool core through the app's internal RPC.
+  # Requires OPENEIR_SERVICE_TOKEN (same value the app receives). The user
+  # must ALSO enable "Live conversation" in Settings — the container refuses
+  # sessions while the setting is off.
+  voice-agent:
+    build: ./mini-services/voice-agent
+    image: openeir-voice-agent:latest
+    container_name: openeir-voice
+    profiles: ["voice"]
+    restart: unless-stopped
+    ports:
+      - "${OPENEIR_VOICE_PORT:-8021}:8021"
+    environment:
+      OPENEIR_URL: http://app:3000
+      OPENEIR_SERVICE_TOKEN: ${OPENEIR_SERVICE_TOKEN:?set OPENEIR_SERVICE_TOKEN — same value as the app service}
+      DEEPGRAM_URL: ${DEEPGRAM_URL:-}          # optional self-hosted Deepgram engine
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      PIPER_VOICE_PATH: ${PIPER_VOICE_PATH:-voices/en_US-amy-medium.onnx}
+    depends_on:
+      - app
+    security_opt:
+      - no-new-privileges:true
 
 volumes:
   openeir-data:

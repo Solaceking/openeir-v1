@@ -405,3 +405,53 @@ model AuthSession {
 
   @@index([accountId])
 }
+
+/// Audit trail for every AI-agent tool call — read or write, executed or
+/// awaiting confirmation, success or failure. Same spirit as the emergency
+/// audit: a health app must be able to answer "what did the agent do, when,
+/// with which model, and what happened?". Queryable from Settings → AI agent.
+model ToolAudit {
+  id            String   @id @default(cuid())
+  tool          String // registry tool name, e.g. "logBloodPressure"
+  category      String   @default("read") // read | log | write | destructive
+  risk          String   @default("low") // low | medium | high
+  args          String   @default("{}") // JSON arguments (redacted before store)
+  reason        String? // the model's stated reason for the call
+  status        String // executed | pending | confirmed | declined | refused | error | expired
+  outcome       String? // short human-readable result summary
+  origin        String   @default("chat") // chat | voice | realtime | rpc
+  sessionId     String? // chat session when origin=chat
+  providerLabel String? // which provider/model produced the call
+  model         String?
+  latencyMs     Int      @default(0)
+  error         String?
+  createdAt     DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([tool])
+  @@index([status])
+}
+
+/// A write the model PROPOSED. Nothing touches tracked data until a human
+/// explicitly confirms this row — the generalized version of the original
+/// BP/glucose/med confirmation card. Confirmed rows execute once (idempotent
+/// by status); declined/expired rows never execute.
+model PendingAction {
+  id         String    @id @default(cuid())
+  tool       String // write tool name
+  args       String // JSON arguments the executor will validate + run
+  readback   String    @default("") // human-readable summary shown on the card
+  risk       String    @default("medium") // medium | high
+  status     String    @default("pending") // pending | confirmed | declined | expired | error
+  origin     String    @default("chat") // chat | voice | realtime
+  sessionId  String?
+  auditId    String?
+  result     String? // JSON outcome after execution
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  expiresAt  DateTime? // unconfirmed actions expire (default 24h)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([sessionId])
+}

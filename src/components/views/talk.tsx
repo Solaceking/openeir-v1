@@ -24,8 +24,9 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
 import { MessageBubble, type ChatBubbleMessage } from '@/components/talk/message-bubble'
-import type { ChatAction } from '@/components/talk/action-card'
+import type { ChatAction, PendingSnapshot } from '@/components/talk/action-card'
 import { VoiceMode } from '@/components/talk/voice-mode'
+import { LiveAgentModal } from '@/components/talk/live-agent'
 import { AttachSheet, AttachmentChips, type PendingImage, type PendingFile } from '@/components/talk/attach-sheet'
 import { PageHeader } from '@/components/page-header'
 import { OpenEirLogo } from '@/components/logo'
@@ -59,6 +60,10 @@ function dayLabel(iso: string): string {
 
 const SUG_ICONS = [TrendingUp, Activity, HeartPulse, Pill]
 
+function parseMeta(raw: string): { detected?: ChatAction; pending?: PendingSnapshot[]; toolEvents?: ChatBubbleMessage['toolEvents']; provider?: ChatBubbleMessage['provider'] } {
+  try { return JSON.parse(raw ?? '{}') } catch { return {} }
+}
+
 export function TalkView() {
   const { t } = useT()
   const SUGGESTIONS = [t('talk.sug1'), t('talk.sug2'), t('talk.sug3'), t('talk.sug4')]
@@ -68,6 +73,8 @@ export function TalkView() {
   const [sending, setSending] = useState(false)
   const [sendError, setSendError] = useState<string | null>(null)
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [liveAgentOpen, setLiveAgentOpen] = useState(false)
+  const [liveAgentAvailable, setLiveAgentAvailable] = useState(false)
   const [attachOpen, setAttachOpen] = useState(false)
   const [pendingImages, setPendingImages] = useState<PendingImage[]>([])
   const [pendingFile, setPendingFile] = useState<PendingFile | null>(null)
@@ -76,6 +83,7 @@ export function TalkView() {
   const [sessions, setSessions] = useState<Array<{ id: string; count: number; lastAt: string; title: string | null }>>([])
   const [dictating, setDictating] = useState(false)
   const [clearOpen, setClearOpen] = useState(false)
+  const [voiceAgentRefresh, setVoiceAgentRefresh] = useState(0)
   const stopDictationRef = useRef<(() => void) | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const lastFailedRef = useRef<string | null>(null)
@@ -89,8 +97,7 @@ export function TalkView() {
       .then((j) => {
         if (!alive || !j?.messages) { setLoaded(true); return }
         const rows: ChatBubbleMessage[] = (j.messages as WireMessage[]).map((row) => {
-          let meta: { detected?: ChatAction; provider?: ChatBubbleMessage['provider'] } = {}
-          try { meta = JSON.parse(row.meta ?? '{}') } catch { /* {} */ }
+          const meta = parseMeta(row.meta)
           return {
             id: row.id,
             role: row.role === 'assistant' ? 'assistant' : 'user',
@@ -99,6 +106,8 @@ export function TalkView() {
             createdAt: row.createdAt,
             status: 'sent' as const,
             detected: row.role === 'assistant' ? (meta.detected ?? null) : null,
+            pending: row.role === 'assistant' ? (meta.pending ?? null) : null,
+            toolEvents: row.role === 'assistant' ? (meta.toolEvents ?? null) : null,
             provider: meta.provider ?? null,
           }
         })
@@ -108,6 +117,18 @@ export function TalkView() {
       .catch(() => setLoaded(true))
     return () => { alive = false }
   }, [])
+
+  // ---- opt-in realtime agent availability (Settings → Providers → Audio) ----
+  useEffect(() => {
+    let alive = true
+    fetch('/api/voice/live')
+      .then((r) => r.json())
+      .then((j) => {
+        if (alive) setLiveAgentAvailable(Boolean(j?.live?.enabled && j?.serviceAvailable))
+      })
+      .catch(() => {})
+    return () => { alive = false }
+  }, [voiceAgentRefresh])
 
   // ---- autoscroll ----------------------------------------------------------
   useEffect(() => {
@@ -141,6 +162,8 @@ export function TalkView() {
         createdAt: new Date().toISOString(),
         status: 'sent' as const,
         detected: (turn.detected as ChatAction | undefined) ?? null,
+        pending: (turn.pending as PendingSnapshot[] | undefined) ?? null,
+        toolEvents: (turn.toolEvents as ChatBubbleMessage['toolEvents']) ?? null,
         provider: turn.provider ?? null,
       },
     ])
@@ -159,25 +182,110 @@ export function TalkView() {
       createdAt: new Date().toISOString(), status: 'sending',
     }])
     setSending(true)
+    const images = pendingImages.length
+      ? pendingImages.map(({ previewUrl, ...rest }) => rest)
+      : undefined
+    const fileText = pendingFile ? { name: pendingFile.name, excerpt: pendingFile.excerpt } : undefined
+    const body = JSON.stringify({ text, channel, sessionId: sessionId ?? undefined, images, fileText })
+    const liveBubble = {
+      id: `live-${tmpId}`,
+      role: 'assistant' as const,
+      content: '',
+      channel,
+      createdAt: new Date().toISOString(),
+      status: 'sent' as const,
+      detected: null,
+      pending: null as PendingSnapshot[] | null,
+      toolEvents: null as ChatBubbleMessage['toolEvents'],
+      provider: null,
+    }
+    let bubbleAdded = false
     try {
-      const images = pendingImages.length
-        ? pendingImages.map(({ previewUrl, ...rest }) => rest)
-        : undefined
-      const fileText = pendingFile ? { name: pendingFile.name, excerpt: pendingFile.excerpt } : undefined
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, channel, sessionId: sessionId ?? undefined, images, fileText }),
-      })
+      // streaming first — token-by-token with live tool events; the buffered
+      // endpoint remains the fallback for proxies that break SSE
+      const res = await fetch('/api/chat/stream', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
+      const isSse = (res.headers.get('content-type') ?? '').includes('text/event-stream')
+      if (!res.ok || !isSse || !res.body) {
+        if (!res.ok && !isSse) {
+          const j = await res.json().catch(() => null)
+          throw new Error(j?.error ?? 'stream_unavailable')
+        }
+        return bufferedSend(body)
+      }
+      setPendingImages([])
+      setPendingFile(null)
+
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buf = ''
+      let failed = false
+      for (;;) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buf += decoder.decode(value, { stream: true })
+        let idx: number
+        while ((idx = buf.indexOf('\n\n')) >= 0) {
+          const frame = buf.slice(0, idx)
+          buf = buf.slice(idx + 2)
+          const line = frame.split('\n').find((l) => l.startsWith('data: '))
+          if (!line) continue
+          let ev: Record<string, unknown>
+          try { ev = JSON.parse(line.slice(6)) } catch { continue }
+          if (ev.type === 'delta') {
+            const chunk = String(ev.text ?? '')
+            if (!chunk) continue
+            if (!bubbleAdded) {
+              bubbleAdded = true
+              setMessages((prev) => [...prev, { ...liveBubble, content: chunk }])
+            } else {
+              setMessages((prev) => prev.map((m) => (m.id === liveBubble.id ? { ...m, content: m.content + chunk } : m)))
+            }
+          } else if (ev.type === 'tool') {
+            const arrived = ev.event as ChatBubbleMessage['toolEvents']
+            setMessages((prev) => prev.map((m) => (m.id === liveBubble.id ? { ...m, toolEvents: [...(m.toolEvents ?? []), ...(Array.isArray(arrived) ? arrived : [])] } : m)))
+          } else if (ev.type === 'pending') {
+            const p = ev.action as PendingSnapshot
+            setMessages((prev) => prev.map((m) => (m.id === liveBubble.id ? { ...m, pending: [...(m.pending ?? []), p] } : m)))
+          } else if (ev.type === 'done') {
+            setMessages((prev) => prev.map((m) => (m.id === liveBubble.id ? {
+              ...m,
+              id: String(ev.replyId ?? m.id),
+              provider: (ev.provider as ChatBubbleMessage['provider']) ?? null,
+              pending: ((ev.pending as PendingSnapshot[]) ?? m.pending) ?? null,
+              toolEvents: (ev.toolEvents as ChatBubbleMessage['toolEvents']) ?? m.toolEvents,
+            } : m)))
+            if (ev.sessionId) setSessionId(String(ev.sessionId))
+          } else if (ev.type === 'error') {
+            setSendError(String(ev.error ?? 'Eir could not reach an AI provider.'))
+            failed = true
+          }
+        }
+      }
+      if (failed) throw new Error('stream_error')
+      setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'sent' as const } : m)))
+    } catch {
+      // buffered fallback — same body, classic endpoint (also covers SSE-less proxies)
+      try {
+        await bufferedSend(body)
+        setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'sent' as const } : m)))
+        setPendingImages([])
+        setPendingFile(null)
+      } catch {
+        lastFailedRef.current = text
+        setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'failed' as const } : m)))
+      }
+    } finally {
+      setSending(false)
+    }
+
+    async function bufferedSend(bodyText: string) {
+      const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: bodyText })
       const json = await res.json().catch(() => null)
       if (!res.ok) {
         setSendError(json?.error ?? 'Eir could not reach an AI provider.')
         throw new Error(json?.error ?? 'no_provider')
       }
-      setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'sent' as const } : m)))
       if (json.sessionId) setSessionId(json.sessionId)
-      setPendingImages([])
-      setPendingFile(null)
       setMessages((prev) => [...prev, {
         id: json.replyId as string,
         role: 'assistant',
@@ -186,14 +294,11 @@ export function TalkView() {
         createdAt: new Date().toISOString(),
         status: 'sent' as const,
         detected: (json.detected as ChatAction | undefined) ?? null,
+        pending: (json.pending as PendingSnapshot[] | undefined) ?? null,
+        toolEvents: (json.toolEvents as ChatBubbleMessage['toolEvents']) ?? null,
         provider: json.provider ?? null,
         revealLen: 0,
       }])
-    } catch {
-      lastFailedRef.current = text
-      setMessages((prev) => prev.map((m) => (m.id === tmpId ? { ...m, status: 'failed' as const } : m)))
-    } finally {
-      setSending(false)
     }
   }, [sending, pendingImages, pendingFile])
 
@@ -231,8 +336,7 @@ export function TalkView() {
       const r = await fetch(`/api/chat?sessionId=${encodeURIComponent(id)}`)
       const j = await r.json()
       const rows: ChatBubbleMessage[] = ((j?.messages ?? []) as WireMessage[]).map((row) => {
-        let meta: { detected?: ChatAction; provider?: ChatBubbleMessage['provider'] } = {}
-        try { meta = JSON.parse(row.meta ?? '{}') } catch { /* {} */ }
+        const meta = parseMeta(row.meta)
         return {
           id: row.id,
           role: row.role === 'assistant' ? 'assistant' : 'user',
@@ -241,6 +345,8 @@ export function TalkView() {
           createdAt: row.createdAt,
           status: 'sent' as const,
           detected: row.role === 'assistant' ? (meta.detected ?? null) : null,
+          pending: row.role === 'assistant' ? (meta.pending ?? null) : null,
+          toolEvents: row.role === 'assistant' ? (meta.toolEvents ?? null) : null,
           provider: meta.provider ?? null,
         }
       })
@@ -452,7 +558,7 @@ export function TalkView() {
               exactly like the big chat apps: beside the input, one tap */}
           <button
             className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/30 bg-primary text-primary-foreground transition-transform hover:scale-105 hover:bg-primary/90 active:scale-95"
-            onClick={() => setVoiceOpen(true)}
+            onClick={() => (liveAgentAvailable ? setLiveAgentOpen(true) : setVoiceOpen(true))}
             aria-label={t('talk.live')}
             title={t('talk.live')}
           >
@@ -471,6 +577,10 @@ export function TalkView() {
       </div>
 
       <VoiceMode open={voiceOpen} onClose={() => setVoiceOpen(false)} onTurn={appendTurn} />
+
+      {/* opt-in Pipecat realtime session — only reachable when the user
+          explicitly enabled Live conversation AND the voice profile runs */}
+      <LiveAgentModal open={liveAgentOpen} onClose={() => { setLiveAgentOpen(false); setVoiceAgentRefresh((n) => n + 1) }} />
 
       <AttachSheet
         open={attachOpen}

@@ -45,6 +45,7 @@
     "upload",
     "scripts/verify-*.png",
     "mobile",
-    "openeir-14b84e7f"
+    "openeir-14b84e7f",
+    "tests"
   ]
 }

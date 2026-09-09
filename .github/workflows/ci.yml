@@ -1,0 +1,48 @@
+# OpenEir — CI (lint, types, tests, evals).
+#
+# NOTE (account status): GitHub Actions has been billing-blocked on this
+# account — runs insta-fail with empty logs regardless of PAT scopes. The
+# sandbox build pipeline was used instead for releases. This workflow is
+# correct and will run as soon as billing is cleared in Settings → Billing.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Prisma client
+        run: bunx prisma generate
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Typecheck (app)
+        run: bunx tsc --noEmit
+
+      - name: Tests (hermetic — scratch SQLite, never real data)
+        run: bun test
+
+      # The parser fast-path backstop always runs. The model tool-choice phase
+      # activates only when eval provider secrets are configured; otherwise it
+      # skips honestly so CI stays green on forked/secret-less runs.
+      - name: Tool-calling evals
+        env:
+          OPENEIR_EVAL_OPENAI: ${{ secrets.OPENEIR_EVAL_OPENAI }}
+          OPENEIR_EVAL_ANTHROPIC: ${{ secrets.OPENEIR_EVAL_ANTHROPIC }}
+        run: bun run eval:tools

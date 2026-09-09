@@ -1,8 +1,8 @@
 {
   "name": "openeir",
-  "version": "3.8.3",
+  "version": "3.9.0",
   "private": true,
-  "description": "OpenEir — self-hosted AI medical assistant with ambient intelligence and an open agent harness. Private by design.",
+  "description": "OpenEir \u2014 self-hosted AI medical assistant with ambient intelligence and an open agent harness. Private by design.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -18,7 +18,9 @@
     "db:migrate": "prisma migrate dev",
     "db:reset": "prisma migrate reset",
     "db:seed": "bun scripts/seed.ts",
-    "gen:icons": "bun scripts/gen-icons.js"
+    "gen:icons": "bun scripts/gen-icons.js",
+    "test": "bun test",
+    "eval:tools": "bun scripts/eval-tools.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.11.1",

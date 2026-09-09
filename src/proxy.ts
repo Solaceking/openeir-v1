@@ -13,6 +13,7 @@
 //   open      → household mode, opt-in via OPENEIR_HOUSEHOLD=1 (trusted LANs).
 
 import { NextRequest, NextResponse } from 'next/server'
+import { timingSafeEqual } from 'crypto'
 import { getAuthMode, resolveSession, SESSION_COOKIE } from '@/lib/auth'
 import { pluginTokenAuthorizes } from '@/lib/plugin-auth'
 
@@ -112,11 +113,23 @@ export async function proxy(req: NextRequest) {
 
   // ---- API ----
   if (pathname.startsWith('/api/')) {
+    const method = req.method.toUpperCase()
+    // internal service token (realtime voice agent) may synthesize speech via
+    // the app's Edge-TTS engine — narrow allowance: this one route, POST only,
+    // token compared timing-safe, fail-closed when the env var is unset.
+    if (pathname.startsWith('/api/voice/tts') && method === 'POST') {
+      const expected = process.env.OPENEIR_SERVICE_TOKEN
+      const provided = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+      if (expected && provided) {
+        const a = Buffer.from(provided)
+        const b = Buffer.from(expected)
+        if (a.length === b.length && timingSafeEqual(a, b)) return NextResponse.next()
+      }
+    }
     // /api/auth/me + /api/auth/password resolve sessions themselves → let through
     if (pathname.startsWith('/api/auth/me') || pathname.startsWith('/api/auth/password')) {
       return NextResponse.next()
     }
-    const method = req.method.toUpperCase()
     const rule = matchRule(pathname, method)
     if (rule?.role === 'public') return NextResponse.next()
     if (!session) {
