@@ -73,6 +73,7 @@ export const en = {
     deleteConfirmDesc: 'Their sessions end immediately. Health data is not touched.',
     you: 'you',
     openNote: 'Household mode — no sign-in required. Everything works as before until the first account is added.',
+    yourPassword: 'Your password',
   },
   common: {
     save: 'Save',

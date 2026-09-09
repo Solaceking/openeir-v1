@@ -97,7 +97,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // new view → content scrolls to the top; leaving Settings clears its drill-down
   useEffect(() => {
     mainRef.current?.scrollTo({ top: 0 })
-    if (view !== 'settings') useUI.getState().setSettingsSection(null)
+    if (view !== 'settings') {
+      useUI.getState().setSettingsSection(null)
+      useUI.getState().setSettingsIntent(null)
+    }
   }, [view])
 
   // ⌘K / Ctrl-K quick navigation
@@ -122,6 +125,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setView(k)
     setMoreOpen(false)
     setCmdOpen(false)
+  }
+
+  // sidebar user card → Settings → Profile & accounts, password dialog open.
+  // Order matters: setView first (the [view] effect only clears the section
+  // when navigating AWAY from settings), then section + one-shot intent.
+  const openChangePassword = () => {
+    go('settings')
+    useUI.getState().setSettingsSection('profile')
+    useUI.getState().setSettingsIntent('change-password')
   }
 
   const allowed = (keys: ViewKey[]) => keys.filter((k) => roleCanView(role, k))
@@ -327,7 +339,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <span className="block text-[10px] font-normal text-muted-foreground">@{account.username} · {t(`roles.${role}`)}</span>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => go('settings')}>
+                <DropdownMenuItem onClick={openChangePassword}>
                   <KeyRound className="mr-2 h-4 w-4" /> {t('accounts.changePw')}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => void signOut()} className="text-destructive focus:text-destructive">

@@ -25,6 +25,9 @@ interface UIState {
   // settings drill-down (transient — feeds the breadcrumb trail, never persisted)
   settingsSection: string | null
   setSettingsSection: (v: string | null) => void
+  // one-shot cross-view intent (e.g. sidebar user card → settings → auto-open change-password)
+  settingsIntent: string | null
+  setSettingsIntent: (v: string | null) => void
   // voice preferences (per-device: TTS voices live on the device)
   voiceAutoSpeak: boolean
   voiceRate: number
@@ -51,6 +54,8 @@ export const useUI = create<UIState>()(
       setSidebarCollapsed: (sidebarCollapsed) => set({ sidebarCollapsed }),
       settingsSection: null,
       setSettingsSection: (settingsSection) => set({ settingsSection }),
+      settingsIntent: null,
+      setSettingsIntent: (settingsIntent) => set({ settingsIntent }),
       voiceAutoSpeak: true,
       voiceRate: 1,
       voiceEngine: 'edge',

@@ -23,6 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { useAccounts, useAccountMutations, useChangePassword, useAuth } from '@/lib/api-client'
+import { useUI } from '@/lib/store'
 import { ROLES, type Role } from '@/lib/nav'
 import { useT } from '@/lib/i18n'
 import { toast } from 'sonner'
@@ -43,18 +44,40 @@ export function AccountsSection() {
   const [addOpen, setAddOpen] = useState(false)
   const [form, setForm] = useState({ username: '', password: '', displayName: '', role: 'caregiver' as Role })
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null)
-  const [pwOpen, setPwOpen] = useState(false)
-  const [pw, setPw] = useState({ current: '', next: '' })
-  const changePw = useChangePassword()
+  const [pwOpenState, setPwOpenState] = useState(false)
+  // The sidebar user card sets a one-shot intent; DERIVE the open state from it
+  // (no setState-in-effect) and consume the intent when the dialog closes.
+  const settingsIntent = useUI((s) => s.settingsIntent)
+  const pwOpen = pwOpenState || settingsIntent === 'change-password'
+  const setPwOpen = (v: boolean) => {
+    setPwOpenState(v)
+    if (!v && useUI.getState().settingsIntent === 'change-password') {
+      useUI.getState().setSettingsIntent(null)
+    }
+  }
 
   if (!isAdmin) {
     return (
-      <Card>
-        <CardContent className="flex items-start gap-3 p-5">
-          <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
-          <p className="text-sm text-muted-foreground">{t('accounts.subtitle')}</p>
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card>
+          <CardContent className="flex items-start gap-3 p-5">
+            <Info className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+            <p className="text-sm text-muted-foreground">{t('accounts.subtitle')}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">{t('accounts.yourPassword')}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" size="sm" onClick={() => setPwOpen(true)} className="gap-1.5">
+              <KeyRound className="h-4 w-4" aria-hidden />
+              {t('accounts.changePw')}
+            </Button>
+          </CardContent>
+        </Card>
+        <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
+      </div>
     )
   }
 
@@ -87,17 +110,6 @@ export function AccountsSection() {
       await mut.remove.mutateAsync(deleteTarget.id)
       toast.success(t('accounts.deleted'))
       setDeleteTarget(null)
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
-  const changeMyPassword = async () => {
-    try {
-      await changePw.mutateAsync(pw)
-      toast.success(t('accounts.updated'))
-      setPwOpen(false)
-      setPw({ current: '', next: '' })
     } catch (e) {
       toast.error((e as Error).message)
     }
@@ -255,32 +267,56 @@ export function AccountsSection() {
         </DialogContent>
       </Dialog>
 
-      {/* change password dialog */}
-      <Dialog open={pwOpen} onOpenChange={setPwOpen}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>{t('accounts.changePw')}</DialogTitle>
-          </DialogHeader>
-          <Separator />
-          <div className="space-y-3.5">
-            <div>
-              <Label htmlFor="pw-cur">{t('accounts.currentPw')}</Label>
-              <Input id="pw-cur" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} className="mt-1.5" autoComplete="current-password" />
-            </div>
-            <div>
-              <Label htmlFor="pw-new">{t('accounts.newPw')}</Label>
-              <Input id="pw-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1.5" autoComplete="new-password" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPwOpen(false)}>{t('common.cancel')}</Button>
-            <Button onClick={() => void changeMyPassword()} disabled={changePw.isPending || !pw.current || pw.next.length < 8} className="gap-1.5">
-              {changePw.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-              {t('common.save')}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* change password dialog (shared, role-agnostic) */}
+      <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
     </div>
+  )
+}
+
+// Self-service password change — rendered inside Settings → Profile & accounts
+// for every role (admins manage others above; everyone can change their own).
+// Also opens via the sidebar user-card shortcut (settingsIntent: 'change-password').
+function ChangePasswordDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (v: boolean) => void }) {
+  const { t } = useT()
+  const changePw = useChangePassword()
+  const [pw, setPw] = useState({ current: '', next: '' })
+
+  const changeMyPassword = async () => {
+    try {
+      await changePw.mutateAsync(pw)
+      toast.success(t('accounts.updated'))
+      onOpenChange(false)
+      setPw({ current: '', next: '' })
+    } catch (e) {
+      toast.error((e as Error).message)
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>{t('accounts.changePw')}</DialogTitle>
+        </DialogHeader>
+        <Separator />
+        <div className="space-y-3.5">
+          <div>
+            <Label htmlFor="pw-cur">{t('accounts.currentPw')}</Label>
+            <Input id="pw-cur" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} className="mt-1.5" autoComplete="current-password" />
+          </div>
+          <div>
+            <Label htmlFor="pw-new">{t('accounts.newPw')}</Label>
+            <Input id="pw-new" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} className="mt-1.5" autoComplete="new-password" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>{t('common.cancel')}</Button>
+          <Button onClick={() => void changeMyPassword()} disabled={changePw.isPending || !pw.current || pw.next.length < 8} className="gap-1.5">
+            {changePw.isPending && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            {t('common.save')}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
