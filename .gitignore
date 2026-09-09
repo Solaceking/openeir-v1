@@ -45,7 +45,6 @@ next-env.d.ts
 # internal working notes & local tooling (not part of the published app)
 /worklog.md
 /.zscripts
-/tests
 /download
 /upload
 /Caddyfile
