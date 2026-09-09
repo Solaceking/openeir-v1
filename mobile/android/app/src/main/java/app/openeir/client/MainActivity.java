@@ -1,5 +1,6 @@
 package app.openeir.client;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -26,6 +27,7 @@ import androidx.core.content.ContextCompat;
 import androidx.fragment.app.FragmentActivity;
 
 import com.getcapacitor.BridgeActivity;
+import com.getcapacitor.PluginHandle;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -61,7 +63,8 @@ public class MainActivity extends BridgeActivity {
         registerPlugin(OpenEirBridge.class);
         super.onCreate(savedInstanceState);
         createNotificationChannels();
-        bridgePlugin = (OpenEirBridge) bridge.getPlugin("OpenEirBridge");
+        PluginHandle handle = bridge.getPlugin("OpenEirBridge");
+        bridgePlugin = handle != null ? (OpenEirBridge) handle.getInstance() : null;
         ensureLockOverlay();
         requestNotificationPermissionIfNeeded();
         handleIntent(getIntent());
@@ -70,7 +73,7 @@ public class MainActivity extends BridgeActivity {
         if (server != null && !server.isEmpty()) {
             String view = getIntent() != null ? getIntent().getStringExtra(EXTRA_VIEW) : null;
             final String target = view != null && !view.isEmpty() ? server + "/?view=" + Uri.encode(view) : server;
-            getWebView().post(() -> getWebView().loadUrl(target));
+            bridge.getWebView().post(() -> bridge.getWebView().loadUrl(target));
         }
         MainActivity.scheduleWork(getApplicationContext());
     }
@@ -89,8 +92,8 @@ public class MainActivity extends BridgeActivity {
         }
         String view = intent.getStringExtra(EXTRA_VIEW);
         String server = bridgePlugin != null ? bridgePlugin.getServerUrl() : null;
-        if (view != null && !view.isEmpty() && server != null && !server.isEmpty()) {
-            getWebView().post(() -> getWebView().loadUrl(server + "/?view=" + Uri.encode(view)));
+        if (view != null && !view.isEmpty() && server != null && !server.isEmpty() && bridge != null) {
+            bridge.getWebView().post(() -> bridge.getWebView().loadUrl(server + "/?view=" + Uri.encode(view)));
         }
     }
 
@@ -110,7 +113,7 @@ public class MainActivity extends BridgeActivity {
                 bridgePlugin.postMultipartToServer(server, "image", "shared.jpg", mime, bytes);
                 runOnUiThread(() -> {
                     android.widget.Toast.makeText(this, "Image sent to OpenEir OCR", android.widget.Toast.LENGTH_SHORT).show();
-                    getWebView().loadUrl(server + "/?view=readings");
+                    bridge.getWebView().loadUrl(server + "/?view=readings");
                 });
             } catch (Exception e) {
                 runOnUiThread(() -> android.widget.Toast
@@ -223,6 +226,10 @@ public class MainActivity extends BridgeActivity {
         prompt.authenticate(info);
     }
 
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
     private boolean lockEnabled() {
         return getSharedPreferences("openeir", Context.MODE_PRIVATE).getBoolean("lockEnabled", false);
     }
@@ -232,7 +239,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onStop() {
+    public void onStop() {
         super.onStop();
         if (lockEnabled()) {
             getSharedPreferences("openeir", Context.MODE_PRIVATE)
@@ -241,7 +248,7 @@ public class MainActivity extends BridgeActivity {
     }
 
     @Override
-    protected void onStart() {
+    public void onStart() {
         super.onStart();
         if (lockEnabled()) {
             long last = getSharedPreferences("openeir", Context.MODE_PRIVATE).getLong("lastPauseAt", 0);
@@ -281,7 +288,7 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onBackPressed() {
-        WebView webView = getWebView();
+        WebView webView = bridge != null ? bridge.getWebView() : null;
         if (webView != null && webView.canGoBack() && !webView.getUrl().equals(bridgePlugin != null ? bridgePlugin.getServerUrl() : null)) {
             // let in-app back navigation work (e.g. report pages)
             webView.goBack();

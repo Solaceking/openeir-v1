@@ -148,7 +148,6 @@ public class OpenEirPushService extends PushService {
                 : NotificationCompat.PRIORITY_DEFAULT);
 
         if ("sos".equals(kind)) builder.setCategory(NotificationCompat.CATEGORY_ALARM);
-        if (tag != null && !tag.isEmpty()) builder.setTag(tag);
 
         int id = (int) System.currentTimeMillis();
         nm.notify(tag == null || tag.isEmpty() ? "openeir" : tag, id, builder.build());
