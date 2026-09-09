@@ -1,6 +1,7 @@
-// OpenEir — AES-256-GCM encryption for provider API keys at rest
+// OpenEir — AES-256-GCM encryption for provider API keys (and SMTP passwords)
+// at rest
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto'
-import { existsSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 
 const KEY_FILE = join(process.cwd(), 'db', '.appkey')
@@ -9,6 +10,9 @@ function getAppKey(): Buffer {
   const envKey = process.env.APP_KEY
   if (envKey) return createHash('sha256').update(envKey).digest()
   if (existsSync(KEY_FILE)) return createHash('sha256').update(readFileSync(KEY_FILE, 'utf8')).digest()
+  // the standalone build runs from .next/standalone — db/ may not exist there
+  // yet, so create it before the first write (AI keys, SMTP password, …)
+  mkdirSync(join(process.cwd(), 'db'), { recursive: true })
   const raw = randomBytes(32).toString('hex')
   writeFileSync(KEY_FILE, raw, { mode: 0o600 })
   return createHash('sha256').update(raw).digest()

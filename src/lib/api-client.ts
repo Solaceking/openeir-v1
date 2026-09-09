@@ -31,6 +31,7 @@ export interface Profile {
   glucoseTargetMin: number; glucoseTargetMax: number; glucoseUnit: string
   weightTargetKg: number | null; onboarded: boolean
   gpName: string | null; gpOrg: string | null; gpAddress: string | null
+  gpEmail: string | null
   gpPhone: string | null; gpWebsite: string | null; gpPlaceId: string | null
   gpPlusCode: string | null; gpNotes: string | null
   prefs: Record<string, unknown>
@@ -94,7 +95,7 @@ export interface InsightRow {
 export interface AuthMe {
   mode: 'open' | 'accounts'
   role: 'admin' | 'caregiver' | 'viewer' | null
-  account: { id: string; username: string; displayName: string; role: string } | null
+  account: { id: string; username: string; displayName: string; role: string; totpEnabled?: boolean } | null
 }
 
 export function useAuth() {
@@ -142,6 +143,132 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (input: { current: string; next: string }) =>
       j('/api/auth/password', { method: 'PUT', body: JSON.stringify(input) }),
+  })
+}
+
+// ---------- two-factor (TOTP) ----------
+
+export function useTotpStatus(enabled: boolean) {
+  return useQuery<{ enabled: boolean }>({
+    queryKey: ['totp-status'],
+    queryFn: () => j('/api/auth/2fa'),
+    enabled,
+  })
+}
+
+export function useTotpMutations() {
+  const qc = useQueryClient()
+  const refresh = () => {
+    qc.invalidateQueries({ queryKey: ['totp-status'] })
+    qc.invalidateQueries({ queryKey: ['auth-me'] })
+  }
+  const setup = useMutation({
+    mutationFn: () =>
+      j<{ secret: string; uri: string; qr: string }>('/api/auth/2fa', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'setup' }),
+      }),
+  })
+  const enable = useMutation({
+    mutationFn: (code: string) =>
+      j<{ enabled: boolean; backupCodes: string[] }>('/api/auth/2fa', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'enable', code }),
+      }),
+    onSuccess: refresh,
+  })
+  const disable = useMutation({
+    mutationFn: (input: { password: string; code?: string }) =>
+      j('/api/auth/2fa', { method: 'POST', body: JSON.stringify({ action: 'disable', ...input }) }),
+    onSuccess: refresh,
+  })
+  return { setup, enable, disable }
+}
+
+// ---------- email (SMTP) ----------
+
+export interface SmtpView {
+  configured: boolean
+  host?: string
+  port?: number
+  secure?: boolean
+  user?: string
+  from?: string
+  hasPassword?: boolean
+}
+
+export function useSmtpConfig(enabled: boolean) {
+  return useQuery<SmtpView>({
+    queryKey: ['smtp-config'],
+    queryFn: () => j('/api/settings/smtp'),
+    enabled,
+  })
+}
+
+export function useSmtpMutations() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ['smtp-config'] })
+  const save = useMutation({
+    mutationFn: (input: { host: string; port: number; secure: boolean; user: string; from: string; password?: string }) =>
+      j('/api/settings/smtp', { method: 'PUT', body: JSON.stringify(input) }),
+    onSuccess: refresh,
+  })
+  const test = useMutation({
+    mutationFn: (to?: string) =>
+      j<{ sent: boolean; to: string }>('/api/settings/smtp', { method: 'POST', body: JSON.stringify({ to: to || undefined }) }),
+  })
+  const remove = useMutation({
+    mutationFn: () => j('/api/settings/smtp', { method: 'DELETE' }),
+    onSuccess: refresh,
+  })
+  return { save, test, remove }
+}
+
+// ---------- native push (UnifiedPush / ntfy) ----------
+
+export interface UnifiedTargetRow {
+  id: string
+  endpoint: string
+  appId: string
+  label: string
+  createdAt: string
+  lastSuccessAt: string | null
+  lastErrorAt: string | null
+  lastError: string | null
+}
+
+export function useUnifiedTargets(enabled: boolean) {
+  return useQuery<{ targets: UnifiedTargetRow[] }>({
+    queryKey: ['unified-targets'],
+    queryFn: () => j('/api/push/unified'),
+    enabled,
+  })
+}
+
+export function useUnifiedMutations() {
+  const qc = useQueryClient()
+  const refresh = () => qc.invalidateQueries({ queryKey: ['unified-targets'] })
+  const register = useMutation({
+    mutationFn: (input: { endpoint: string; label?: string; appId?: string }) =>
+      j('/api/push/unified', { method: 'POST', body: JSON.stringify(input) }),
+    onSuccess: refresh,
+  })
+  const remove = useMutation({
+    mutationFn: (id: string) => j(`/api/push/unified?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    onSuccess: refresh,
+  })
+  return { register, remove }
+}
+
+// ---------- report → email ----------
+
+export function useSendReportEmail() {
+  return useMutation({
+    mutationFn: (input: { to?: string; windowDays?: number; message?: string }) =>
+      j<{ sent: boolean; to: string; window: { days: number }; attachment: string }>('/api/report/email', {
+        method: 'POST',
+        body: JSON.stringify(input),
+      }),
   })
 }
 

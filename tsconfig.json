@@ -43,6 +43,8 @@
     ".zscripts",
     "download",
     "upload",
-    "scripts/verify-*.png"
+    "scripts/verify-*.png",
+    "mobile",
+    "openeir-14b84e7f"
   ]
 }

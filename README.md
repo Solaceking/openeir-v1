@@ -46,7 +46,9 @@ It runs entirely on your own hardware, in your own home, on a single SQLite file
 | 📖 **Blood Pressure Story** | Weekly AI narrative of your week in plain language |
 | 🧪 **What-If Simulator** | Simple projections ("lose 5 kg, +2 exercise days") from published effect sizes, with AI interpretation |
 | 📊 **Eir Score** | A 0–100 composite (BP control, glucose TIR, adherence, wellbeing, consistency) with a radar breakdown of the parts |
-| 🩺 **Doctor reports** | Print-ready A4 clinical narrative, suggested questions, CSV/JSON export of everything |
+| 🩺 **Doctor reports** | Print-ready A4 clinical narrative, server-rendered PDF, suggested questions, CSV/JSON export of everything — and **email straight to your GP** through your own SMTP server |
+| 🔐 **Accounts & 2FA** | Role-based accounts (admin/caregiver/viewer), auth on by default, TOTP two-factor with backup codes |
+| 📱 **Android app** | Companion shell for your own instance: biometric app lock, background push via UnifiedPush (no Google dependency), share-to-OCR, print-to-PDF, home-screen shortcuts — [docs/MOBILE.md](docs/MOBILE.md) |
 | 🤖 **Agent harness** | HTTP API for your own agents (manifest, polling, insight push) |
 | 🌐 **PWA** | Installable, offline capture with automatic sync, background shell caching, push notifications |
 | ♿ **Accessibility** | High-contrast, large-text and simple modes, 44px+ touch targets, screen-reader labels |
@@ -104,6 +106,21 @@ docker compose --profile core --profile ai --profile agent up -d
 All state lives in the `openeir-data` volume. Back that up — it *is* your health record. Platform-by-platform deployment and operations: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
+
+## OpenEir on Android
+
+The companion app connects your phone to *your own* instance — your data never
+touches anyone else's server. Free APK from
+[Releases](https://github.com/Solaceking/openeir/releases) (`OpenEir.apk`), or
+build it yourself.
+
+- **Biometric app lock** — fingerprint/face gate when you return to the app
+- **Background push** — briefings, med reminders and SOS alerts via UnifiedPush/ntfy, no Google services required
+- **Share → OCR** — share a photo of a lab report or CGM screen from any app, logged in two taps
+- **Share / print out** — the GP report as PDF to Gmail, WhatsApp or paper
+
+Everything else (setup, 2FA, emailing reports to your GP) works inside the app
+exactly like the web. Full story: [docs/MOBILE.md](docs/MOBILE.md).
 
 ## The AI: bring your own — every provider first-class
 

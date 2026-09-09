@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">OpenEir</string>
+    <string name="title_activity_main">OpenEir</string>
+    <string name="shortcut_bp_short">Log BP</string>
+    <string name="shortcut_bp_long">Log a blood pressure reading</string>
+    <string name="shortcut_meds_short">Meds</string>
+    <string name="shortcut_meds_long">Open your medications</string>
+    <string name="shortcut_sos_short">Safety</string>
+    <string name="shortcut_sos_long">Open safety &amp; SOS</string>
+    <string name="channel_briefing">Briefings</string>
+    <string name="channel_meds">Medication reminders</string>
+    <string name="channel_sos">Emergency (SOS)</string>
+    <string name="channel_info">General</string>
+</resources>

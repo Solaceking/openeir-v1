@@ -63,11 +63,12 @@ export interface PushResult {
   sent: number
   failed: number
   pruned: number
+  nativeSent: number
 }
 
 /** Send to every stored subscription. Never throws — failures are recorded. */
 export async function sendPushToAll(payload: PushPayload): Promise<PushResult> {
-  const result: PushResult = { sent: 0, failed: 0, pruned: 0 }
+  const result: PushResult = { sent: 0, failed: 0, pruned: 0, nativeSent: 0 }
   let keys: VapidKeys
   try {
     keys = await getVapidKeys()
@@ -107,5 +108,47 @@ export async function sendPushToAll(payload: PushPayload): Promise<PushResult> {
       }
     }),
   )
+  await fanOutUnifiedPush(payload, result)
   return result
+}
+
+/**
+ * Fan the same payload out to native (UnifiedPush/ntfy) targets — the Android
+ * app registers its distributor endpoint here. Body stays the JSON contract;
+ * X-Title / X-Priority headers make the message look right if the user also
+ * watches the topic with a plain ntfy client.
+ */
+async function fanOutUnifiedPush(payload: PushPayload, result: PushResult): Promise<void> {
+  let targets: { id: string; endpoint: string }[]
+  try {
+    targets = await db.unifiedPushTarget.findMany({ select: { id: true, endpoint: true } })
+  } catch {
+    return // table not migrated yet — never block web push
+  }
+  if (!targets.length) return
+  await Promise.all(
+    targets.map(async (t) => {
+      try {
+        const res = await fetch(t.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Title': payload.title,
+            'X-Priority': payload.kind === 'sos' ? 'urgent' : payload.kind === 'briefing' ? 'low' : 'default',
+            'X-Tags': payload.kind === 'sos' ? 'rotating_light' : 'heartbeat',
+          },
+          body: JSON.stringify(payload),
+        })
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        result.nativeSent++
+        await db.unifiedPushTarget.update({ where: { id: t.id }, data: { lastSuccessAt: new Date(), lastErrorAt: null, lastError: null } }).catch(() => {})
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        await db.unifiedPushTarget.update({
+          where: { id: t.id },
+          data: { lastErrorAt: new Date(), lastError: message.slice(0, 300) },
+        }).catch(() => {})
+      }
+    }),
+  )
 }

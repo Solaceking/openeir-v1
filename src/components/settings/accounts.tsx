@@ -23,6 +23,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select'
 import { useAccounts, useAccountMutations, useChangePassword, useAuth } from '@/lib/api-client'
+import { TwoFactorCard } from '@/components/settings/two-factor'
 import { useUI } from '@/lib/store'
 import { ROLES, type Role } from '@/lib/nav'
 import { useT } from '@/lib/i18n'
@@ -76,6 +77,7 @@ export function AccountsSection() {
             </Button>
           </CardContent>
         </Card>
+        <TwoFactorCard />
         <ChangePasswordDialog open={pwOpen} onOpenChange={setPwOpen} />
       </div>
     )
@@ -209,6 +211,9 @@ export function AccountsSection() {
           <Button variant="outline" size="sm" onClick={() => setPwOpen(true)}>{t('accounts.changePw')}</Button>
         </CardContent>
       </Card>
+
+      {/* two-factor authentication (self-service, every role) */}
+      <TwoFactorCard />
 
       {/* add account dialog */}
       <Dialog open={addOpen} onOpenChange={setAddOpen}>

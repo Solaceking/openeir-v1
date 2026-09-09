@@ -36,6 +36,7 @@ import { ChatPrefsSection } from '@/components/settings/chat-prefs'
 import { McpSection } from '@/components/settings/mcp'
 import { IntegrationsSection } from '@/components/settings/integrations'
 import { AccountsSection } from '@/components/settings/accounts'
+import { EmailSection, NativePushSection } from '@/components/settings/email-push'
 import { toast } from 'sonner'
 
 const PACK_CHOICES = [
@@ -166,7 +167,7 @@ export function SettingsView() {
       {section === 'mcp' && <McpSection />}
       {section === 'integrations' && <IntegrationsSection />}
       {section === 'health' && <TargetsForm />}
-      {section === 'safety' && (<div className="space-y-4"><NotificationsSection /><EmergencySection /></div>)}
+      {section === 'safety' && (<div className="space-y-4"><NotificationsSection /><NativePushSection /><EmailSection /><EmergencySection /></div>)}
       {section === 'appearance' && <AppearanceLanguageSection />}
       {section === 'data' && <DataSection />}
     </div>

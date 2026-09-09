@@ -17,6 +17,7 @@ import { WhatIfView } from '@/components/views/whatif'
 import { ReportsView } from '@/components/views/reports'
 import { SettingsView } from '@/components/views/settings'
 import { useUI } from '@/lib/store'
+import type { ViewKey } from '@/lib/nav'
 
 function ViewRouter() {
   const view = useUI((s) => s.view)
@@ -36,6 +37,8 @@ function ViewRouter() {
   }
 }
 
+const VALID_VIEWS: ViewKey[] = ['dashboard', 'talk', 'record', 'readings', 'medications', 'safety', 'trends', 'story', 'whatif', 'reports', 'settings']
+
 export default function OpenEirApp() {
   const profile = useProfile()
   const auth = useAuth()
@@ -45,6 +48,18 @@ export default function OpenEirApp() {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => { /* offline support is progressive */ })
     }
+  }, [])
+
+  useEffect(() => {
+    // deep link: /?view=record or /#record — used by Android app shortcuts,
+    // notifications and anything that needs to land on a specific screen
+    try {
+      const url = new URL(window.location.href)
+      const raw = url.searchParams.get('view') ?? url.hash.replace(/^#\/?/, '')
+      if (raw && VALID_VIEWS.includes(raw as ViewKey)) {
+        useUI.getState().setView(raw as ViewKey)
+      }
+    } catch { /* malformed URL — ignore */ }
   }, [])
 
   if (profile.isLoading || auth.isLoading) {

@@ -16,6 +16,7 @@ export type EventType =
   | 'BLUETOOTH_SYNCED'
   | 'DOCTOR_VISIT_UPCOMING'
   | 'REPORT_VIEWED'
+  | 'REPORT_EMAILED'
   | 'MANUAL_QUERY'
   | 'DEEP_ANALYSIS'
 

@@ -4,10 +4,10 @@
 // If the instance has no accounts yet (bootstrap), this page offers to create
 // the first (admin) account — the only door into a fresh install.
 
-import { Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
-import { Loader2, LogIn, ShieldCheck, UserPlus } from 'lucide-react'
+import { KeyRound, Loader2, LogIn, ShieldCheck, UserPlus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -26,6 +26,11 @@ function AuthForm() {
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  // second factor: the server hands back a signed challenge after the password
+  // step; we replay the password with challenge + code to mint the session
+  const [challenge, setChallenge] = useState<string | null>(null)
+  const [code, setCode] = useState('')
+  const codeRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     let cancelled = false
@@ -45,11 +50,21 @@ function AuthForm() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(
+          challenge
+            ? { username, password, challenge, code: code.trim() }
+            : { username, password },
+        ),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok) {
         setError(json?.error ?? 'Sign-in failed')
+        return
+      }
+      if (json?.totpRequired && json?.challenge) {
+        setChallenge(json.challenge)
+        setCode('')
+        setTimeout(() => codeRef.current?.focus(), 50)
         return
       }
       router.replace(params.get('next') ?? '/')
@@ -123,30 +138,55 @@ function AuthForm() {
         )}
 
         <form onSubmit={bootstrap ? createFirstAccount : signIn} className="mt-8 w-full space-y-4">
-          <div>
-            <Label htmlFor="login-username">{t('login.username')}</Label>
-            <Input
-              id="login-username"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              autoComplete={bootstrap ? 'username' : 'username'}
-              autoCapitalize="none"
-              autoFocus
-              className="mt-1.5 h-11"
-            />
-            {bootstrap && <p className="mt-1 text-[11px] text-muted-foreground">{t('login.usernameHint')}</p>}
-          </div>
-          <div>
-            <Label htmlFor="login-password">{t('login.password')}</Label>
-            <Input
-              id="login-password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete={bootstrap ? 'new-password' : 'current-password'}
-              className="mt-1.5 h-11"
-            />
-          </div>
+          {challenge ? (
+            <div>
+              <div className="flex items-center gap-2">
+                <KeyRound className="h-4 w-4 text-primary" aria-hidden />
+                <Label htmlFor="login-code">Two-factor code</Label>
+              </div>
+              <Input
+                id="login-code"
+                ref={codeRef}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder="123 456 or backup code"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                className="mt-1.5 h-11 text-center font-mono text-lg tracking-[0.35em]"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Enter the 6-digit code from your authenticator app — or a backup code (a1b2-c3d4).
+              </p>
+            </div>
+          ) : (
+            <>
+              <div>
+                <Label htmlFor="login-username">{t('login.username')}</Label>
+                <Input
+                  id="login-username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoFocus
+                  className="mt-1.5 h-11"
+                />
+                {bootstrap && <p className="mt-1 text-[11px] text-muted-foreground">{t('login.usernameHint')}</p>}
+              </div>
+              <div>
+                <Label htmlFor="login-password">{t('login.password')}</Label>
+                <Input
+                  id="login-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={bootstrap ? 'new-password' : 'current-password'}
+                  className="mt-1.5 h-11"
+                />
+              </div>
+            </>
+          )}
           {bootstrap && (
             <div>
               <Label htmlFor="login-confirm">{t('login.confirmPassword')}</Label>
@@ -167,15 +207,17 @@ function AuthForm() {
             </p>
           )}
 
-          <Button type="submit" disabled={busy || !username || !password || (bootstrap && !confirm)} className="h-11 w-full gap-2">
+          <Button type="submit" disabled={busy || !username || !password || (challenge && !code) || (bootstrap && !confirm)} className="h-11 w-full gap-2">
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
             ) : bootstrap ? (
               <UserPlus className="h-4 w-4" aria-hidden />
+            ) : challenge ? (
+              <KeyRound className="h-4 w-4" aria-hidden />
             ) : (
               <LogIn className="h-4 w-4" aria-hidden />
             )}
-            {bootstrap ? t('login.createAccount') : t('login.signIn')}
+            {bootstrap ? t('login.createAccount') : challenge ? 'Verify code' : t('login.signIn')}
           </Button>
         </form>
 

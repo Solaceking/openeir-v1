@@ -63,3 +63,13 @@ scripts/*.png
 
 # runtime database backups — never publish (health data!)
 /db/backups/
+
+# android companion app build artifacts (mobile/android is fully committed)
+mobile/node_modules
+mobile/android/.gradle
+mobile/android/app/build
+mobile/android/build
+mobile/android/local.properties
+mobile/android/capacitor-cordova-android-plugins
+mobile/android/app/*.keystore
+*.keystore

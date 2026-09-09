@@ -4,7 +4,7 @@
    - Navigations: NETWORK-first (users get new builds immediately), cache/offline fallback
    - API GETs: network-first with cache fallback (last-known data offline)
    - POSTs are queued client-side (see src/lib/offline.ts) */
-const VERSION = 'openeir-v4'
+const VERSION = 'openeir-v5'
 const SHELL = ['/', '/manifest.webmanifest', '/offline.html']
 
 self.addEventListener('install', (event) => {

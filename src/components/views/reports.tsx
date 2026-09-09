@@ -1,16 +1,22 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Printer, Download, Loader2, ExternalLink } from 'lucide-react'
+import { FileText, Printer, Download, Loader2, ExternalLink, Mail } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Label } from '@/components/ui/label'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import { useStats } from '@/lib/api-client'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
+import { useStats, useProfile, useSendReportEmail } from '@/lib/api-client'
 import { useT } from '@/lib/i18n'
 import { PageHeader } from '@/components/page-header'
+import { toast } from 'sonner'
 
 const SECTIONS = [
   { key: 'summary', label: 'Overview & stats' },
@@ -24,9 +30,14 @@ const SECTIONS = [
 export function ReportsView() {
   const { t } = useT()
   const stats = useStats()
+  const profile = useProfile()
   const [days, setDays] = useState('30')
   const [sections, setSections] = useState<string[]>(SECTIONS.map((s) => s.key))
   const [busy, setBusy] = useState(false)
+  // "Send to GP" dialog state
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [emailForm, setEmailForm] = useState({ to: '', message: '' })
+  const sendEmail = useSendReportEmail()
 
   const toggleSection = (key: string) => {
     setSections((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]))
@@ -39,6 +50,25 @@ export function ReportsView() {
       window.open(`/api/report?${qs.toString()}`, '_blank', 'noopener')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const openEmailDialog = () => {
+    setEmailForm({ to: profile.data?.profile?.gpEmail ?? '', message: '' })
+    setEmailOpen(true)
+  }
+
+  const sendToGp = async () => {
+    try {
+      const res = await sendEmail.mutateAsync({
+        to: emailForm.to.trim() || undefined,
+        windowDays: Number(days),
+        message: emailForm.message.trim() || undefined,
+      })
+      toast.success(`Report emailed to ${res.to}`)
+      setEmailOpen(false)
+    } catch (e) {
+      toast.error((e as Error).message)
     }
   }
 
@@ -79,11 +109,19 @@ export function ReportsView() {
                 <a href={`/api/report?format=html&sections=${sections.join(',')}&autoprint=1&from=${new Date(Date.now() - Number(days) * 86400000).toISOString()}`} target="_blank" rel="noopener">
                   <Button variant="outline" className="gap-2"><ExternalLink className="h-4 w-4" aria-hidden />{t('reports.print')}</Button>
                 </a>
+                <a href={`/api/report?format=pdf&sections=${sections.join(',')}&from=${new Date(Date.now() - Number(days) * 86400000).toISOString()}`} download>
+                  <Button variant="outline" className="gap-2"><Download className="h-4 w-4" aria-hidden />PDF</Button>
+                </a>
+                <Button variant="outline" className="gap-2" onClick={openEmailDialog}>
+                  <Mail className="h-4 w-4" aria-hidden />
+                  Send to GP
+                </Button>
               </div>
             </div>
             <p className="text-xs leading-relaxed text-muted-foreground">
               The report opens as a print-ready A4 document — use your browser&apos;s “Save as PDF” for a clean file to email or share.
-              Everything is generated locally from your database; nothing leaves your server except the optional AI summary text.
+              “PDF” downloads a server-rendered copy, and “Send to GP” emails it through your own mail server.
+              Everything is generated locally from your database; nothing leaves your server except the optional AI summary text and the email you choose to send.
             </p>
           </CardContent>
         </Card>
@@ -120,6 +158,47 @@ export function ReportsView() {
           </Card>
         </div>
       </div>
+
+      {/* send-to-GP dialog */}
+      <Dialog open={emailOpen} onOpenChange={setEmailOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Send report to your GP</DialogTitle>
+            <DialogDescription>
+              A PDF report ({days}-day window, same sections as selected) is attached and sent from your own mail server.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3.5">
+            <div>
+              <Label htmlFor="gp-to">Recipient</Label>
+              <Input
+                id="gp-to" type="email" value={emailForm.to}
+                onChange={(e) => setEmailForm({ ...emailForm, to: e.target.value })}
+                placeholder="surgery@practice.nhs.uk" className="mt-1.5"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {profile.data?.profile?.gpEmail ? 'Pre-filled from the GP details on your profile.' : 'Set a default in Settings → Safety → Email.'}
+              </p>
+            </div>
+            <div>
+              <Label htmlFor="gp-note">Personal note (optional)</Label>
+              <Textarea
+                id="gp-note" value={emailForm.message}
+                onChange={(e) => setEmailForm({ ...emailForm, message: e.target.value })}
+                placeholder="Dear Dr Smith, I'd like to discuss my readings at next month's appointment…"
+                rows={4} className="mt-1.5"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEmailOpen(false)}>Cancel</Button>
+            <Button onClick={() => void sendToGp()} disabled={sendEmail.isPending || !emailForm.to.trim()} className="gap-1.5">
+              {sendEmail.isPending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Mail className="h-4 w-4" aria-hidden />}
+              Send
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

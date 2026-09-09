@@ -1,5 +1,37 @@
 # Changelog
 
+## v3.8 — 2026-09-09
+
+### Added — the OpenEir Android companion app 📱
+- A native Android app that connects to **your own** instance — your data never lives anywhere else. Onboarding asks for the server address (HTTPS enforced; plain HTTP only as an explicit opt-in for trusted LANs), then the app behaves like the web, full-screen, with no browser chrome.
+- **Biometric app lock** — an opaque gate whenever the app returns from background after the configured idle timeout (1 min default), unlocking with fingerprint/face or device credential; falls open rather than locking anyone out if no authenticator is enrolled. Health data on a phone should not be one glance away.
+- **Background notifications via UnifiedPush** — the server now fans every push (SOS, briefing, nudge, test) out to native endpoints alongside web-push subscriptions. The app registers itself through a UnifiedPush distributor (typically ntfy) — no Google services, works on GrapheneOS/CalyxOS. Notifications land on proper Android channels: briefings quiet, medication nudges default, SOS high-priority with vibration and Do-Not-Disturb bypass. Manual endpoint registration in Settings → Safety → Native push covers testing and power users.
+- **Share Target → OCR** — share an image (lab report, CGM screen, prescription label) from any app straight into OpenEir's OCR pipeline with the app's session cookies, landing on the readings view.
+- **Native share & print** — Android print framework renders the report to PDF; documents and text share out to Gmail/WhatsApp/etc. in two taps.
+- **Home-screen shortcuts** — long-press the icon for *Log BP*, *Meds* and *Safety* (deep links via the new `?view=` route on web too).
+- Distribution: CI builds `OpenEir.apk` on every `v*` tag (GitHub-hosted runners, free for public repos), signed when the four keystore secrets are configured, unsigned otherwise. Full story and build-from-source guide: **docs/MOBILE.md**.
+
+### Added — TOTP two-factor authentication 🔐
+- Self-service enrollment per account: Settings → Profile & accounts → *Two-factor authentication*. QR code (or manual key) for any authenticator app, verified with a live code before the factor switches on — a broken scan can never lock you out.
+- Ten **backup codes**, shown exactly once and stored only as HMAC hashes; each works once at login and keeps working if your phone is gone.
+- Sign-in becomes two steps: password → short-lived signed challenge → authenticator (or backup) code → session. Codes are single-use (a per-account timestep watermark blocks replay), the challenge expires in two minutes, and everything stays inside the existing login rate limit.
+- Turning 2FA off requires the password **and** a current code, so a stolen session cannot strip the second factor.
+- Implemented from RFC 6238 directly on Node's crypto — auditable, standard-compatible (HMAC-SHA1, 30 s, 6 digits, ±1 window), no new auth dependency.
+
+### Added — email the GP report 🩺
+- **Send to GP** in Reports: a server-rendered clinical PDF (pdf-lib — same statistics and phrasing as the HTML report, one source of truth) with a personal note, sent through **your own SMTP server**. No third-party email service; credentials are stored AES-256-GCM encrypted and the password is write-only in the API.
+- SMTP setup lives in Settings → Safety → Email (host/port/TLS/user/from) with a test send; the default GP recipient is stored on the profile and pre-filled.
+- `GET /api/report?format=pdf` gives every platform a downloadable PDF; email sends are rate-limited to 5/hour and audit-logged (`REPORT_EMAILED`).
+- The GP email field joins the profile's GP block (`gpEmail`).
+
+### Changed
+- `sendPushToAll` now returns `nativeSent` and records per-target delivery errors in the new `UnifiedPushTarget` table; web-push behavior is unchanged.
+- `/api/auth/me` includes `account.totpEnabled` so the UI can badge the factor state.
+
+### Internal
+- New deps: `qrcode` (TOTP enrollment QR), `nodemailer` (SMTP), `pdf-lib` (clinical PDF). The `mobile/` tree is self-contained (its own package.json) and never touches the server bundle.
+- The Android shell's `allowNavigation: ['*']` is deliberate for a connect-to-your-own-server app — which origins are ever *loaded* is enforced natively (validate → connect), documented in docs/MOBILE.md.
+
 ## v3.7 — 2026-09-09
 
 ### Security — authentication is now ON by default (breaking for passwordless installs)

@@ -23,6 +23,7 @@ const profileSchema = z.object({
   // GP details (filled via map search in the wizard)
   gpName: z.string().max(120).nullable().optional(),
   gpOrg: z.string().max(160).nullable().optional(),
+  gpEmail: z.string().email().max(200).nullable().optional(),
   gpAddress: z.string().max(300).nullable().optional(),
   gpPhone: z.string().max(40).nullable().optional(),
   gpWebsite: z.string().max(200).nullable().optional(),
@@ -63,6 +64,7 @@ export async function PUT(req: Request) {
     ...(data.onboarded !== undefined ? { onboarded: data.onboarded } : {}),
     ...(data.gpName !== undefined ? { gpName: data.gpName } : {}),
     ...(data.gpOrg !== undefined ? { gpOrg: data.gpOrg } : {}),
+    ...(data.gpEmail !== undefined ? { gpEmail: data.gpEmail } : {}),
     ...(data.gpAddress !== undefined ? { gpAddress: data.gpAddress } : {}),
     ...(data.gpPhone !== undefined ? { gpPhone: data.gpPhone } : {}),
     ...(data.gpWebsite !== undefined ? { gpWebsite: data.gpWebsite } : {}),

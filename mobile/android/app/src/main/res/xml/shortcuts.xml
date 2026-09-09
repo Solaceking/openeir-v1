@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="log_bp"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_bp"
+        android:shortcutShortLabel="@string/shortcut_bp_short"
+        android:shortcutLongLabel="@string/shortcut_bp_long">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+        </intent-filter>
+        <intent
+            android:targetPackage="app.openeir.client"
+            android:targetClass="app.openeir.client.MainActivity">
+            <extra android:name="openeir.view" android:value="record" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="log_meds"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_meds"
+        android:shortcutShortLabel="@string/shortcut_meds_short"
+        android:shortcutLongLabel="@string/shortcut_meds_long">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+        </intent-filter>
+        <intent
+            android:targetPackage="app.openeir.client"
+            android:targetClass="app.openeir.client.MainActivity">
+            <extra android:name="openeir.view" android:value="medications" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="sos"
+        android:enabled="true"
+        android:icon="@drawable/shortcut_sos"
+        android:shortcutShortLabel="@string/shortcut_sos_short"
+        android:shortcutLongLabel="@string/shortcut_sos_long">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+        </intent-filter>
+        <intent
+            android:targetPackage="app.openeir.client"
+            android:targetClass="app.openeir.client.MainActivity">
+            <extra android:name="openeir.view" android:value="safety" />
+        </intent>
+    </shortcut>
+</shortcuts>
