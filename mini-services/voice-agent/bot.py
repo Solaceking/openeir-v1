@@ -139,8 +139,8 @@ async def run_bot(connection: SmallWebRTCConnection, openeir_url: str, service_t
         session_id = f"voice-{connection.peer_id}" if hasattr(connection, "peer_id") else "voice-live"
 
         transport = SmallWebRTCTransport(
+            webrtc_connection=connection,  # 0.0.66: constructor arg, not a params field
             params=SmallWebRTCTransportParams(
-                webrtc_connection=connection,
                 audio_in_enabled=True,
                 audio_out_enabled=True,
                 vad_analyzer=SileroVADAnalyzer(),  # barge-in detection
