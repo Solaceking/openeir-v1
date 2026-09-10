@@ -35,7 +35,15 @@ import os
 from typing import Optional
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import Frame, TextFrame, TranscriptionFrame, TTSSpeakFrame
+from pipecat.frames.frames import (
+    Frame,
+    TextFrame,
+    TranscriptionFrame,
+    TTSSpeakFrame,
+    TTSStartedFrame,
+    TTSStoppedFrame,
+    UserStartedSpeakingFrame,
+)
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -47,6 +55,29 @@ from engines import build_stt, build_tts
 from openeir import OpenEirClient, ConfirmFlow, confirmation_prompt_for
 
 log = logging.getLogger("openeir-voice")
+
+
+class StateTap(FrameProcessor):
+    """Sits after TTS in the pipeline and mirrors speech events to the browser
+    over the WebRTC data channel, so the UI orb always knows what Eir is doing:
+      TTSStartedFrame            → speaking
+      TTSStoppedFrame            → listening (mic open again)
+      UserStartedSpeakingFrame   → listening (user talking / barge-in)
+    ("thinking" is emitted by the turn processor when the LLM turn starts.)"""
+
+    def __init__(self, emit):
+        super().__init__()
+        self._emit = emit
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+        if isinstance(frame, TTSStartedFrame):
+            self._emit("speaking")
+        elif isinstance(frame, TTSStoppedFrame):
+            self._emit("listening")
+        elif isinstance(frame, UserStartedSpeakingFrame):
+            self._emit("listening")
+        await self.push_frame(frame, direction)
 
 
 class OpenEirTurnProcessor(FrameProcessor):
@@ -85,6 +116,9 @@ class OpenEirTurnProcessor(FrameProcessor):
             await self._handle_utterance(text)
             return
         async with self._turn_lock:
+            emit = getattr(self, "_emit_state", None)
+            if emit:
+                emit("thinking")
             await self._handle_utterance(text)
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
@@ -157,7 +191,7 @@ class OpenEirTurnProcessor(FrameProcessor):
             await self._speak(flow.question())
 
 
-async def run_bot(connection: SmallWebRTCConnection, openeir_url: str, service_token: str) -> None:
+async def run_bot(connection: SmallWebRTCConnection, openeir_url: str, service_token: str, voice: Optional[str] = None) -> None:
     client = OpenEirClient(openeir_url, service_token)
     try:
         config = await client.live_config()
@@ -179,8 +213,18 @@ async def run_bot(connection: SmallWebRTCConnection, openeir_url: str, service_t
         )
 
         stt = build_stt(config)
-        tts = build_tts(config, openeir_url, service_token)
+        tts = build_tts(config, openeir_url, service_token, voice=voice)
         turn_processor = OpenEirTurnProcessor(client, session_id)
+
+        # push live agent-state events to the browser orb over the data channel
+        def emit_state(state: str) -> None:
+            try:
+                transport.send_app_message({"openeir": {"state": state}})
+            except Exception:
+                pass  # channel not open yet — the orb falls back to local audio-reactive mode
+
+        turn_processor._emit_state = emit_state  # "thinking" events
+        state_tap = StateTap(emit_state)
 
         pipeline = Pipeline(
             [
@@ -188,6 +232,7 @@ async def run_bot(connection: SmallWebRTCConnection, openeir_url: str, service_t
                 stt,                    # pluggable STT
                 turn_processor,         # OpenEir brain via RPC + spoken confirms
                 tts,                    # pluggable TTS
+                state_tap,              # mirrors speech state → browser orb
                 transport.output(),     # speaker
             ]
         )

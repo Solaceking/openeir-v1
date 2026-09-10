@@ -64,15 +64,18 @@ def build_stt(config: dict[str, Any]):
     return whisper.WhisperSTTService()
 
 
-def build_tts(config: dict[str, Any], openeir_base_url: str, service_token: str):
-    """Create the TTS service from the app's live config."""
+def build_tts(config: dict[str, Any], openeir_base_url: str, service_token: str, voice: str | None = None):
+    """Create the TTS service from the app's live config. `voice` is the
+    user's browser-side Edge-voice choice (sent with the WebRTC offer) —
+    it overrides any env/catalog default so live mode speaks with exactly
+    the voice picked in Settings → Audio."""
     engine = (config.get("live", {}) or {}).get("ttsEngine", "edge")
     rate = (config.get("live", {}) or {}).get("rate") or 1.0
 
     if engine == "edge":
         from edge_tts_service import OpenEirEdgeTTS  # local module
 
-        return OpenEirEdgeTTS(openeir_base_url=openeir_base_url, service_token=service_token, rate=rate)
+        return OpenEirEdgeTTS(openeir_base_url=openeir_base_url, service_token=service_token, rate=rate, voice=voice)
 
     if engine == "piper":
         piper = _import("pipecat.services.piper", "[piper]")

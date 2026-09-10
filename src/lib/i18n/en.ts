@@ -403,6 +403,8 @@ export const en = {
     liveStart: 'Start live conversation',
     liveConnecting: 'Connecting…',
     liveListening: 'Listening — just talk',
+    agentSpeaking: 'Eir is speaking…',
+    agentThinking: 'Thinking…',
     liveEnd: 'End',
     liveBargeHint: 'Interrupt any time: just start talking while Eir is speaking. Write actions always ask a clear yes or no first.',
     liveError: 'Could not start the live session.',

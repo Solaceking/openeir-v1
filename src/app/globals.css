@@ -430,9 +430,37 @@ svg.lucide { stroke-width: 2.25; }
 .eir-ring-orbit { animation: eir-ring-orbit 6s linear infinite; transform-origin: 50% 50%; will-change: transform; }
 .eir-breathe { animation: eir-breathe 3.6s ease-in-out infinite; transform-origin: 50% 50%; }
 
+/* ---- live-voice orb (Talk → Live conversation) ----
+   States arrive over the WebRTC data channel: listening / thinking / speaking.
+   Listening: calm teal breathing. Thinking: amber shimmer. Speaking: teal
+   pulse + expanding rings. All flat/opacity only — no heavy compositing. */
+.live-orb { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
+.live-orb__core {
+  width: 56px; height: 56px; border-radius: 9999px;
+  background: radial-gradient(circle at 34% 30%, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.55) 60%, hsl(var(--primary) / 0.25) 100%);
+  transition: transform 0.35s ease, box-shadow 0.35s ease;
+}
+.live-orb__ring {
+  position: absolute; inset: 0; border-radius: 9999px;
+  border: 1.5px solid hsl(var(--primary) / 0.5);
+  opacity: 0;
+}
+.live-orb--listening .live-orb__core { animation: eir-breathe 3.6s ease-in-out infinite; }
+.live-orb--thinking .live-orb__core { animation: live-orb-think 1.1s ease-in-out infinite; }
+.live-orb--speaking .live-orb__core { animation: live-orb-speak 0.9s ease-in-out infinite; box-shadow: 0 0 24px hsl(var(--primary) / 0.45); }
+.live-orb--speaking .live-orb__ring { animation: live-orb-ring 1.6s ease-out infinite; }
+.live-orb--speaking .live-orb__ring--2 { animation-delay: 0.8s; }
+@keyframes live-orb-think { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.94); } }
+@keyframes live-orb-speak { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.12); } }
+@keyframes live-orb-ring {
+  0% { transform: scale(0.62); opacity: 0.9; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .eir-live, .eir-dot, .eir-caret,
   .eir-splash-logo, .eir-splash-word, .eir-splash-tag, .eir-splash-bar,
+  .live-orb__core, .live-orb__ring,
   .eir-ring-main, .eir-ring-echo, .eir-ring-orbit, .eir-breathe { animation: none; }
   [data-sonner-toast] { animation: eir-toast-in 0.2s ease-out both !important; }
   .eir-check-draw path, .eir-check-draw circle { animation: none; stroke-dashoffset: 0; }

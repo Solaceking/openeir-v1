@@ -15,6 +15,7 @@ from __future__ import annotations
 import io
 import logging
 import os
+import re
 from typing import AsyncGenerator, Optional
 
 import httpx
@@ -51,6 +52,9 @@ class OpenEirEdgeTTS(TTSService):
         self._token = service_token
         self._rate = min(1.6, max(0.6, float(rate)))
         self._voice = voice or os.environ.get("OPENEIR_EDGE_VOICE", "")
+        if self._voice and not re.fullmatch(r"[a-z]{2,3}-[A-Za-z]+-[A-Za-z]+Neural", self._voice):
+            log.warning("ignoring malformed voice id %r — falling back to catalog default", self._voice[:40])
+            self._voice = ""
         self._voice_loaded = bool(self._voice)  # env/explicit wins; else lazy-load from app
         self._http = httpx.AsyncClient(timeout=30.0)
 

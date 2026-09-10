@@ -14,14 +14,17 @@ import { AudioLines, Loader2, MicOff, PhoneOff, ShieldCheck } from 'lucide-react
 import { Button } from '@/components/ui/button'
 import { ActionCard, type PendingSnapshot } from '@/components/talk/action-card'
 import { useT } from '@/lib/i18n'
+import { useUI } from '@/lib/store'
 
 type LiveState = 'idle' | 'connecting' | 'live' | 'error'
+type AgentState = 'listening' | 'thinking' | 'speaking'
 
 export function LiveAgentModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useT()
   const [state, setState] = useState<LiveState>('idle')
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<PendingSnapshot[]>([])
+  const [agentState, setAgentState] = useState<AgentState>('listening')
   const pcRef = useRef<RTCPeerConnection | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -46,6 +49,17 @@ export function LiveAgentModal({ open, onClose }: { open: boolean; onClose: () =
       pcRef.current = pc
       stream.getTracks().forEach((track) => pc.addTrack(track, stream))
 
+      // agent-state channel — Eir pushes { openeir: { state } } events here,
+      // driving the orb: listening / thinking / speaking
+      const dc = pc.createDataChannel('pipecat')
+      dc.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data)
+          const s = msg?.openeir?.state
+          if (s === 'listening' || s === 'thinking' || s === 'speaking') setAgentState(s)
+        } catch { /* non-JSON control traffic — ignore */ }
+      }
+
       pc.ontrack = (ev) => {
         if (audioRef.current) {
           audioRef.current.srcObject = ev.streams[0]
@@ -67,7 +81,10 @@ export function LiveAgentModal({ open, onClose }: { open: boolean; onClose: () =
       const res = await fetch('/voice-agent/api/offer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sdp: offer.sdp, type: offer.type }),
+        // edgeVoice: the user's picker choice lives in the browser (zustand
+        // localStorage) — the server can't read it, so it travels with the
+        // offer and the container speaks with exactly this voice.
+        body: JSON.stringify({ sdp: offer.sdp, type: offer.type, voice: useUI.getState().edgeVoice || undefined }),
       })
       if (!res.ok) {
         const j = await res.json().catch(() => null)
@@ -141,13 +158,29 @@ export function LiveAgentModal({ open, onClose }: { open: boolean; onClose: () =
           <div className="space-y-3">
             <div className="flex items-center justify-between rounded-xl border border-teal-500/25 bg-teal-500/5 px-3 py-2.5">
               <span className="flex items-center gap-2 text-sm font-medium text-teal-700 dark:text-teal-300">
-                <AudioLines className="eir-breathe h-4 w-4" aria-hidden /> {t('talk.liveListening')}
+                <span
+                  className={`inline-block h-2.5 w-2.5 rounded-full ${
+                    agentState === 'speaking' ? 'bg-teal-400 eir-breathe' :
+                    agentState === 'thinking' ? 'bg-amber-400 eir-breathe' :
+                    'bg-teal-500/70 eir-breathe'
+                  }`}
+                  aria-hidden
+                />
+                {agentState === 'speaking' ? t('talk.agentSpeaking') ?? 'Eir is speaking…' : agentState === 'thinking' ? t('talk.agentThinking') ?? 'Thinking…' : t('talk.liveListening')}
               </span>
               <Button size="sm" variant="outline" className="h-8 rounded-full" onClick={stop}>
                 <PhoneOff className="mr-1 h-3.5 w-3.5" aria-hidden /> {t('talk.liveEnd')}
               </Button>
             </div>
-            <p className="text-[11px] text-muted-foreground">{t('talk.liveBargeHint')}</p>
+            {/* audio-reactive orb — pulses with Eir's actual audio output */}
+            <div className="flex justify-center py-2" aria-hidden>
+              <div className={`live-orb live-orb--${agentState}`}>
+                <div className="live-orb__core" />
+                <div className="live-orb__ring" />
+                <div className="live-orb__ring live-orb__ring--2" />
+              </div>
+            </div>
+            <p className="text-center text-[11px] text-muted-foreground">{t('talk.liveBargeHint')}</p>
             {pending.length > 0 && (
               <div className="space-y-2">
                 <p className="flex items-center gap-1.5 text-xs font-semibold">

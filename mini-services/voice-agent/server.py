@@ -32,6 +32,9 @@ class Offer(BaseModel):
     sdp: str
     type: str = "offer"
     peer_id: Optional[str] = None
+    # browser sends the user's Edge-voice picker choice (zustand localStorage)
+    # with the offer — the server can't read localStorage, so it travels here.
+    voice: Optional[str] = None
 
 
 @app.get("/health")
@@ -54,7 +57,7 @@ async def offer(offer_req: Offer):
         # import here so /health stays alive even if pipecat extras are missing
         from bot import run_bot
 
-        asyncio.create_task(run_bot(connection, OPENEIR_URL, SERVICE_TOKEN))
+        asyncio.create_task(run_bot(connection, OPENEIR_URL, SERVICE_TOKEN, voice=offer_req.voice))
         return {"sdp": answer["sdp"], "type": answer["type"], "peer_id": answer.get("pc_id")}
     except HTTPException:
         raise
