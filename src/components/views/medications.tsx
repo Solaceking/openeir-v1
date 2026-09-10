@@ -63,6 +63,7 @@ export function MedicationsView() {
     <div className="space-y-4">
       <PageHeader
         view="medications"
+        tone="data"
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

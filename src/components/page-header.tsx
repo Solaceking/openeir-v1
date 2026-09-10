@@ -1,6 +1,9 @@
 'use client'
 
-// OpenEir — PageHeader: serif page title + visual icon tile.
+// OpenEir — PageHeader: page title + visual icon tile.
+// Two typographic voices: narrative pages speak in the display serif
+// (the brand telling you something); data pages answer in bold Geist
+// (the brand showing you numbers) — pass tone="data" there.
 // The breadcrumb trail lives in the shell's top bar (always present, always
 // consistent); this header owns identity: what this page is, and its actions.
 
@@ -16,6 +19,7 @@ export function PageHeader({
   icon: IconOverride,
   actions,
   children,
+  tone = 'narrative',
 }: {
   view: ViewKey
   /** heading text/node — defaults to the view's nav label */
@@ -25,6 +29,8 @@ export function PageHeader({
   icon?: React.ComponentType<{ className?: string }>
   actions?: React.ReactNode
   children?: React.ReactNode
+  /** 'narrative' (serif) for editorial screens; 'data' (bold sans) for number screens */
+  tone?: 'narrative' | 'data'
 }) {
   const { t } = useT()
   const setView = useUI((s) => s.setView)
@@ -46,7 +52,7 @@ export function PageHeader({
               <Icon className="h-5 w-5" aria-hidden />
             </button>
           )}
-          <h1 className="truncate text-[1.35rem] leading-tight">{title ?? t(`nav.${view}`)}</h1>
+          <h1 className={`truncate text-[1.35rem] leading-tight ${tone === 'data' ? 'font-data' : ''}`}>{title ?? t(`nav.${view}`)}</h1>
         </div>
         {actions && <div className="flex shrink-0 items-center gap-1.5">{actions}</div>}
       </div>

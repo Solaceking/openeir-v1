@@ -10,6 +10,7 @@
 import { useRef, useState } from 'react'
 import { Camera, FileText, Loader2, X, Paperclip, ScanLine } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
 import { useT } from '@/lib/i18n'
 
 export interface PendingImage { mediaType: string; dataBase64: string; name: string; previewUrl: string }
@@ -90,12 +91,11 @@ export function AttachSheet({
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-label={t('talk.attach')}>
-      <button className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" aria-label={t('common.close')} onClick={() => onOpenChange(false)} />
-      <div className="relative w-full rounded-t-3xl border bg-card p-4 pb-safe shadow-xl sm:max-w-sm sm:rounded-3xl">
+    <BottomSheet open={open} onOpenChange={onOpenChange} title={t('talk.attachTitle')}>
+      <div className="pb-4 pt-3">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-semibold"><Paperclip className="h-4 w-4 text-primary" /> {t('talk.attachTitle')}</h2>
-          <button onClick={() => onOpenChange(false)} className="flex h-8 w-8 items-center justify-center rounded-full border bg-card text-muted-foreground hover:bg-accent" aria-label={t('common.close')}>
+          <button onClick={() => onOpenChange(false)} className="flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground hover:bg-accent" aria-label={t('common.close')}>
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -136,7 +136,7 @@ export function AttachSheet({
         <input ref={fileRef} type="file" accept=".pdf,.txt,.md,.markdown,.csv,.json,.log,application/pdf,text/*" className="hidden" onChange={(e) => { void pickFile(e.target.files?.[0]); e.currentTarget.value = '' }} />
         {busy && <p className="mt-2 text-center text-[11px] text-muted-foreground">{busy === 'file' ? t('talk.attachExtracting') : t('common.loading')}</p>}
       </div>
-    </div>
+    </BottomSheet>
   )
 }
 
@@ -155,7 +155,6 @@ export function AttachmentChips({
     <div className="flex flex-wrap gap-1.5 px-1 pb-1.5">
       {images.map((img, i) => (
         <span key={i} className="group relative flex items-center gap-1.5 rounded-full border bg-muted/40 py-0.5 pl-0.5 pr-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={img.previewUrl} alt={img.name} className="h-6 w-6 rounded-full object-cover" />
           <span className="max-w-[110px] truncate text-[11px]">{img.name}</span>
           <button onClick={() => onRemoveImage(i)} className="text-muted-foreground hover:text-destructive" aria-label={t('talk.attachRemove')}>

@@ -21,6 +21,8 @@ import { useStats, useInsights, useLogMedication, useAskEir } from '@/lib/api-cl
 import { useUI } from '@/lib/store'
 import { categorizeBp, BP_CATEGORIES } from '@/lib/health/bp'
 import { useT } from '@/lib/i18n'
+import { useIsMobile } from '@/hooks/use-mobile'
+import { MobileHome } from '@/components/views/mobile-home'
 
 function greetingKey(hour: number): string {
   return hour < 12 ? 'dashboard.greetingMorning' : hour < 18 ? 'dashboard.greetingAfternoon' : 'dashboard.greetingEvening'
@@ -34,6 +36,11 @@ export function DashboardView() {
   const logMed = useLogMedication()
   const askEir = useAskEir()
   const [question, setQuestion] = useState('')
+  const isMobile = useIsMobile()
+
+  // Mobile Home is its own screen layer: one hero action, not a dashboard.
+  // Desktop keeps the console-grade view below, untouched.
+  if (isMobile) return <MobileHome />
 
   if (stats.isLoading) {
     return (

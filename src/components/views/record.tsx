@@ -233,7 +233,7 @@ export function RecordView() {
 
   return (
     <div className="space-y-4">
-      <PageHeader view="record" subtitle={t('record.title')} />
+      <PageHeader view="record" tone="data" subtitle={t('record.title')} />
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="h-auto w-full flex-wrap sm:w-auto">

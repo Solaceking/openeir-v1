@@ -18,11 +18,7 @@ import { Button } from '@/components/ui/button'
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { ResponsiveConfirm } from '@/components/ui/bottom-sheet'
 import { MessageBubble, type ChatBubbleMessage } from '@/components/talk/message-bubble'
 import type { ChatAction, PendingSnapshot } from '@/components/talk/action-card'
 import { VoiceMode } from '@/components/talk/voice-mode'
@@ -621,18 +617,16 @@ export function TalkView() {
         </div>
       )}
 
-      <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('talk.clearTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>{t('talk.clearDesc')}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={() => void clearThread()}>{t('talk.clear')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <ResponsiveConfirm
+        open={clearOpen}
+        onOpenChange={setClearOpen}
+        title={t('talk.clearTitle')}
+        description={t('talk.clearDesc')}
+        confirmLabel={t('talk.clear')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={() => void clearThread()}
+        destructive
+      />
     </div>
   )
 }

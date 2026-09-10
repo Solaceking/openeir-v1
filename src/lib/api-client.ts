@@ -5,6 +5,19 @@ import { useQuery, useMutation, useQueryClient, type UseQueryOptions } from '@ta
 import { enqueue, queueLength } from '@/lib/offline'
 import { useUI } from '@/lib/store'
 import { toast } from 'sonner'
+import { hapticSuccess, hapticError } from '@/lib/haptics'
+
+/** One confirmation language for every write — manual or agent-driven:
+ *  plain past-tense toast with the drawn check + a success haptic inside
+ *  the native shell. Failures answer with an error haptic. */
+function confirm(msg: string, opts?: Parameters<typeof toast.success>[1]) {
+  hapticSuccess()
+  toast.success(msg, opts)
+}
+function deny(msg: string, opts?: Parameters<typeof toast.error>[1]) {
+  hapticError()
+  toast.error(msg, opts)
+}
 
 async function j<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetch(url, {
@@ -345,13 +358,13 @@ export function usePostReading() {
       refresh()
       // duplicate-guard response: caller decides (offers "Log anyway")
       if (!_d.queued && _d.data && typeof _d.data === 'object' && 'duplicate' in _d.data) return
-      toast.success(
+      confirm(
         'queued' in _d && _d.queued
           ? 'Saved offline — will sync automatically'
           : v.kind === 'bp' ? 'Blood pressure saved — Eir is taking a look' : 'Glucose saved — Eir is taking a look',
       )
     },
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => deny(e.message),
   })
 }
 
@@ -406,7 +419,7 @@ export function useLogMedication() {
     onSuccess: (_d, v) => {
       const name = v.medName ?? 'Dose'
       const msg = DOSE_TOAST[v.status]?.(name) ?? `${name} dose updated`
-      toast.success(msg, {
+      confirm(msg, {
         description: 'queued' in _d && _d.queued
           ? 'Saved offline — will sync automatically'
           : `${v.scheduledTime} dose logged · adherence and inventory updated`,
@@ -414,7 +427,7 @@ export function useLogMedication() {
     },
     onError: (e, _v, ctx) => {
       if (ctx?.prev) qc.setQueryData(['stats'], ctx.prev)
-      toast.error(e.message)
+      deny(e.message)
     },
     onSettled: () => refresh(),
   })
@@ -434,7 +447,7 @@ export function useAskEir() {
     mutationFn: (question: string) => j<{ answer: string; provider: { label: string; latencyMs: number } }>('/api/ai/ask', {
       method: 'POST', body: JSON.stringify({ question }),
     }),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => deny(e.message),
   })
 }
 
@@ -448,8 +461,8 @@ export function useUpsertLifestyle() {
       }
       return j('/api/lifestyle', { method: 'POST', body: JSON.stringify(payload) })
     },
-    onSuccess: () => { refresh(); toast.success('Lifestyle saved') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Lifestyle saved') },
+    onError: (e: Error) => deny(e.message),
   })
 }
 
@@ -459,7 +472,7 @@ export function useSaveProfile() {
     mutationFn: (payload: Record<string, unknown>) =>
       j<{ profile: Profile }>('/api/profile', { method: 'PUT', body: JSON.stringify(payload) }),
     onSuccess: () => refresh(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => deny(e.message),
   })
 }
 
@@ -467,19 +480,19 @@ export function useMedicationMutations() {
   const refresh = useRefresh()
   const create = useMutation({
     mutationFn: (payload: Record<string, unknown>) => j('/api/medications', { method: 'POST', body: JSON.stringify(payload) }),
-    onSuccess: () => { refresh(); toast.success('Medication added') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Medication added') },
+    onError: (e: Error) => deny(e.message),
   })
   const update = useMutation({
     mutationFn: ({ id, ...payload }: Record<string, unknown> & { id: string }) =>
       j(`/api/medications/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }),
     onSuccess: () => refresh(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => deny(e.message),
   })
   const remove = useMutation({
     mutationFn: (id: string) => j(`/api/medications/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { refresh(); toast.success('Medication removed') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Medication removed') },
+    onError: (e: Error) => deny(e.message),
   })
   return { create, update, remove }
 }
@@ -489,8 +502,8 @@ export function useDeleteReading() {
   return useMutation({
     mutationFn: ({ kind, id }: { kind: 'bp' | 'glucose'; id: string }) =>
       j(`/api/readings/${kind}/${id}`, { method: 'DELETE' }),
-    onSuccess: () => { refresh(); toast.success('Deleted') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Deleted') },
+    onError: (e: Error) => deny(e.message),
   })
 }
 
@@ -533,8 +546,8 @@ export function useDeliverBriefing() {
       if (!r) throw new Error('Could not deliver the briefing right now')
       return r
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing'] }); toast.success('Briefing delivered — check your notifications') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing'] }); confirm('Briefing delivered — check your notifications') },
+    onError: (e: Error) => deny(e.message),
   })
 }
 
@@ -547,8 +560,8 @@ export function useBriefingConfig() {
   const save = useMutation({
     mutationFn: (config: { enabled: boolean; time: string; push: boolean }) =>
       j('/api/briefing/config', { method: 'PUT', body: JSON.stringify(config) }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing-config'] }); qc.invalidateQueries({ queryKey: ['briefing'] }); toast.success('Briefing schedule saved') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['briefing-config'] }); qc.invalidateQueries({ queryKey: ['briefing'] }); confirm('Briefing schedule saved') },
+    onError: (e: Error) => deny(e.message),
   })
   return { query, save }
 }
@@ -577,31 +590,31 @@ export function useMemoryMutations() {
   const add = useMutation({
     mutationFn: (input: { content: string; kind?: string; pinned?: boolean }) =>
       j('/api/memory', { method: 'POST', body: JSON.stringify(input) }),
-    onSuccess: () => { refresh(); toast.success('Remembered') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Remembered') },
+    onError: (e: Error) => deny(e.message),
   })
   const togglePin = useMutation({
     mutationFn: (input: { id: string; pinned: boolean }) =>
       j('/api/memory', { method: 'PATCH', body: JSON.stringify(input) }),
     onSuccess: () => refresh(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => deny(e.message),
   })
   const remove = useMutation({
     mutationFn: (id: string) => j(`/api/memory?id=${encodeURIComponent(id)}`, { method: 'DELETE' }),
-    onSuccess: () => { refresh(); toast.success('Forgotten') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Forgotten') },
+    onError: (e: Error) => deny(e.message),
   })
   const setAutoReflect = useMutation({
     mutationFn: (autoReflect: boolean) =>
       j('/api/memory', { method: 'PATCH', body: JSON.stringify({ autoReflect }) }),
     onSuccess: () => refresh(),
-    onError: (e: Error) => toast.error(e.message),
+    onError: (e: Error) => deny(e.message),
   })
   const reflect = useMutation({
     mutationFn: (force: boolean) =>
       j<{ created: boolean; content: string; aiNarrated: boolean; observation: string | null }>(`/api/memory/reflect${force ? '?force=1' : ''}`, { method: 'POST' }),
-    onSuccess: () => { refresh(); toast.success('Reflection written') },
-    onError: (e: Error) => toast.error(e.message),
+    onSuccess: () => { refresh(); confirm('Reflection written') },
+    onError: (e: Error) => deny(e.message),
   })
   return { add, togglePin, remove, setAutoReflect, reflect }
 }

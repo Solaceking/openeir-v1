@@ -18,6 +18,7 @@ import { HeartPulse, Droplets, Pill, Check, X, Loader2, Info, Wrench, ShieldAler
 import { Button } from '@/components/ui/button'
 import { toast } from 'sonner'
 import { useT } from '@/lib/i18n'
+import { hapticSuccess, hapticError, hapticLight } from '@/lib/haptics'
 
 // ---------- legacy inline action (old messages) ----------
 
@@ -99,6 +100,7 @@ export function ActionCard({ action, pending, id }: { action?: ChatAction; pendi
           if (j?.action?.status) setServerStatus(j.action.status)
           setCardState('pending')
           toast.error(j?.error ?? t('talk.cardFailed'))
+          hapticError()
           return
         }
         setServerStatus('confirmed')
@@ -108,7 +110,9 @@ export function ActionCard({ action, pending, id }: { action?: ChatAction; pendi
         return
       }
       setCardState('saved')
-      toast(t('talk.cardSaved'))
+      // Same confirmation language as manual writes: drawn-check toast + haptic.
+      hapticSuccess()
+      toast.success(t('talk.cardSaved'))
     } catch {
       setCardState('pending')
       toast.error(t('talk.cardFailed'))
@@ -117,6 +121,7 @@ export function ActionCard({ action, pending, id }: { action?: ChatAction; pendi
 
   const decline = async () => {
     setCardState('discarded')
+    hapticLight()
     if (pending) {
       await fetch('/api/chat/actions', {
         method: 'POST',

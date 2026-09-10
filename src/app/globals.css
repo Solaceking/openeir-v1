@@ -52,11 +52,18 @@
    Primary     #0F766E  deep teal — lines & fills
    Accent      #F2A65A  warm amber — strictly the leaf cluster
                         and isolated key metrics (warnings, low score)
-   Flat vector. Uniform stroke weight. No gradients, no 3D,
-   no drop shadows. Separation comes from warm borders, not elevation.
+   Flat vector. Uniform stroke weight. Separation is layered: warm
+   borders first, quiet elevation for primary content (see the
+   materials block below) — glass and shadow always have solid,
+   high-contrast fallbacks (accessibility overrides everything).
 ---------------------------------------------------------------- */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.75rem;
+  /* Elevation — soft, restrained; separation no longer lives on borders alone.
+     eir-card: a quiet lift for primary content; eir-float: chrome that hovers
+     (nav bar, sheets, the hero). Shadows are warm-tinted, never grey. */
+  --shadow-eir-card: 0 1px 2px rgb(23 46 40 / 0.05), 0 10px 30px -14px rgb(23 46 40 / 0.16);
+  --shadow-eir-float: 0 2px 6px rgb(23 46 40 / 0.06), 0 16px 44px -16px rgb(23 46 40 / 0.24);
   --background: #fdfbf5;
   --foreground: #20302c;
   --card: #fffefa;
@@ -139,9 +146,13 @@
   }
 }
 
-/* ---------- typographic identity ---------- */
+/* ---------- typographic identity ----------
+   Two voices: the display serif (Newsreader) speaks when the app is
+   *telling* the user something — narrative titles, story, reports.
+   The bold geometric sans (Geist) speaks when the app is *showing*
+   numbers — hero numerals, status lines, data-screen headings, forms. */
 
-/* Display serif for page headings — the app's editorial voice.
+/* Display serif for narrative page headings — the app's editorial voice.
    Scoped to main content h1/h2 so chrome stays crisp sans. */
 main h1, main h2 {
   font-family: var(--font-newsreader), ui-serif, Georgia, serif;
@@ -151,6 +162,14 @@ main h1, main h2 {
 main h1 em, main h2 em {
   font-style: italic;
   font-weight: 400;
+}
+
+/* Data tone — bold Geist for number-bearing headings and hero numerals.
+   Applied via PageHeader tone="data" and the hero/status surfaces. */
+main h1.font-data, main h2.font-data, .font-data {
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
 }
 
 /* Instrument-grade numbers: vitals never jitter */
@@ -213,6 +232,10 @@ html.high-contrast * {
 }
 .scroll-slim::-webkit-scrollbar-track { background: transparent; }
 
+/* Own the pull-to-refresh gesture on mobile: contain browser overscroll
+   (Chrome Android would otherwise trigger its native PTR over ours). */
+main { overscroll-behavior-y: contain; }
+
 /* iOS safe area for the bottom nav */
 .pb-safe { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
@@ -222,6 +245,91 @@ input[type="number"]::-webkit-inner-spin-button {
   -webkit-appearance: none; margin: 0;
 }
 input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+/* ---------- materials: elevation + translucent surfaces ----------
+   Mobile-first visual pass: the hero, sheets and the nav bar sit on a
+   frosted material with real depth. Everything here has a hard fallback:
+   high-contrast mode (and OS reduce-transparency) swaps glass for solid,
+   high-contrast surfaces and removes shadow — same content, same layout,
+   no blur, no translucency (Apple's Reduce Transparency principle). */
+.eir-glass {
+  background: color-mix(in oklab, var(--card) 78%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.35);
+  backdrop-filter: blur(20px) saturate(1.35);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  box-shadow: var(--shadow-eir-float);
+}
+.eir-glass-soft {
+  background: color-mix(in oklab, var(--card) 62%, transparent);
+  -webkit-backdrop-filter: blur(16px) saturate(1.25);
+  backdrop-filter: blur(16px) saturate(1.25);
+  border: 1px solid color-mix(in oklab, var(--border) 60%, transparent);
+  box-shadow: var(--shadow-eir-card);
+}
+.eir-elevated { box-shadow: var(--shadow-eir-card); }
+.dark .eir-glass {
+  background: color-mix(in oklab, var(--card) 72%, transparent);
+  border-color: color-mix(in oklab, var(--border) 90%, transparent);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .eir-glass, .eir-glass-soft {
+    background: var(--card);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    border: 1px solid var(--border);
+  }
+}
+
+/* High contrast: glass off, solid surfaces, shadows off, borders strong.
+   Also covers html.high-contrast.dark below. */
+html.high-contrast .eir-glass,
+html.high-contrast .eir-glass-soft {
+  background: var(--card);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  border: 1px solid var(--border);
+}
+html.high-contrast .eir-elevated { box-shadow: none; }
+html.high-contrast * { box-shadow: none !important; }
+
+/* Safe area — top inset for full-screen sheets and edge-touching views */
+.pt-safe { padding-top: env(safe-area-inset-top, 0px); }
+
+/* ---------- icons: one confident weight ----------
+   lucide-react renders class="lucide"; bolder stroke app-wide so marks
+   read as intentional at small sizes (nav, status lines, buttons). */
+svg.lucide { stroke-width: 2.25; }
+
+/* ---------- toasts: spring entrance + check draw-in ----------
+   One confirmation language for manual and agent-driven writes. Copy is
+   plain past tense; the motion carries the satisfaction. */
+[data-sonner-toast] {
+  animation: eir-toast-in 0.55s cubic-bezier(0.22, 1.4, 0.36, 1) both !important;
+}
+@keyframes eir-toast-in {
+  0% { opacity: 0; transform: translateY(-14px) scale(0.96); }
+  60% { opacity: 1; transform: translateY(2px) scale(1.01); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+[data-sonner-toast][data-removed="true"],
+[data-sonner-toast][data-y="-16"] { animation: eir-toast-out 0.25s ease-in both !important; }
+@keyframes eir-toast-out {
+  to { opacity: 0; transform: translateY(-10px) scale(0.97); }
+}
+.eir-check-draw path {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 24;
+  animation: eir-check-draw 0.45s cubic-bezier(0.65, 0, 0.35, 1) 0.12s forwards;
+}
+@keyframes eir-check-draw { to { stroke-dashoffset: 0; } }
+.eir-check-draw circle {
+  stroke-dasharray: 70;
+  stroke-dashoffset: 70;
+  animation: eir-check-draw 0.4s cubic-bezier(0.65, 0, 0.35, 1) forwards;
+}
 
 /* Gentle ambient pulse for live AI activity */
 @keyframes eir-pulse {
@@ -326,4 +434,6 @@ input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
   .eir-live, .eir-dot, .eir-caret,
   .eir-splash-logo, .eir-splash-word, .eir-splash-tag, .eir-splash-bar,
   .eir-ring-main, .eir-ring-echo, .eir-ring-orbit, .eir-breathe { animation: none; }
+  [data-sonner-toast] { animation: eir-toast-in 0.2s ease-out both !important; }
+  .eir-check-draw path, .eir-check-draw circle { animation: none; stroke-dashoffset: 0; }
 }

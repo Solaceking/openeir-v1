@@ -19,7 +19,9 @@ import { VIEW_ICONS } from '@/components/nav-icons'
 import { useOfflineSync } from '@/lib/offline'
 import { useStats, useAuth } from '@/lib/api-client'
 import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { BottomSheet } from '@/components/ui/bottom-sheet'
+import { motion } from 'framer-motion'
+import { hapticLight } from '@/lib/haptics'
 import {
   CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
 } from '@/components/ui/command'
@@ -37,8 +39,9 @@ import { useT } from '@/lib/i18n'
 import { OpenEirLogo } from '@/components/logo'
 import { AmbientScheduler } from '@/components/ambient-scheduler'
 
-/** Mobile bottom bar: the four essentials + More */
-const MOBILE_PRIMARY: ViewKey[] = ['dashboard', 'talk', 'record', 'medications']
+/** Mobile bottom bar: Home / Trends / Safety + a grouped "More" sheet.
+ *  Mobile earns a tighter, opinionated set — not the desktop nav groups. */
+const MOBILE_PRIMARY: ViewKey[] = ['dashboard', 'trends', 'safety']
 
 export function useRealtimeInsights(onNew: (payload: { title: string; body: string; severity: string; origin: string }) => void) {
   const [connected, setConnected] = useState(false)
@@ -227,27 +230,32 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     )
   }
 
-  // ---- mobile bar item ---------------------------------------------------------
+  // ---- mobile bar item — active sits inside a filled circle -------------------
   const mobileItem = (k: ViewKey) => {
     const active = view === k
     const I = VIEW_ICONS[k]
-    const emphasized = k === 'talk'
     return (
-      <button
+      <motion.button
         key={k}
-        onClick={() => go(k)}
+        whileTap={{ scale: 0.92 }}
+        transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.9 }}
+        onClick={() => { hapticLight(); go(k) }}
         aria-current={active ? 'page' : undefined}
-        className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition-colors ${
-          active ? 'bg-secondary' : ''
+        className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1 transition-colors ${
+          active ? 'bg-secondary/80' : ''
         }`}
       >
-        <span className={`relative flex h-7 w-7 items-center justify-center rounded-full ${emphasized && !active ? 'eir-orb-btn text-white' : ''}`}>
-          <I className={`h-5 w-5 ${active ? 'text-primary' : 'text-muted-foreground'}`} strokeWidth={active ? 2.2 : 2} aria-hidden />
+        <span
+          className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+            active ? 'bg-primary text-primary-foreground shadow-[var(--shadow-eir-card)]' : 'text-muted-foreground'
+          }`}
+        >
+          <I className="h-5 w-5" strokeWidth={active ? 2.4 : 2.1} aria-hidden />
         </span>
-        <span className={`relative w-full truncate text-center text-[10px] font-semibold ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+        <span className={`relative w-full truncate text-center text-[10px] font-bold tracking-tight ${active ? 'text-primary' : 'text-muted-foreground'}`}>
           {label(k)}
         </span>
-      </button>
+      </motion.button>
     )
   }
 
@@ -451,71 +459,76 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
         {/* scrollable content */}
         <main ref={mainRef} className="scroll-slim min-w-0 flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-6xl px-3 pb-24 pt-4 sm:px-5 md:pb-8">
+          <div className="mx-auto w-full max-w-6xl px-3 pb-28 pt-4 sm:px-5 md:pb-8">
             {children}
           </div>
         </main>
       </div>
 
-      {/* ---- Mobile bottom nav — 4 essentials + grouped More -------------------- */}
+      {/* ---- Mobile bottom nav — Home / Trends / Safety + More ------------------- */}
       <nav
-        className="pb-safe fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 px-1 pt-1 backdrop-blur-xl md:hidden"
+        className="pb-safe fixed inset-x-0 bottom-0 z-40 eir-glass rounded-t-2xl px-1 pt-1.5 md:hidden"
         aria-label="Mobile navigation"
       >
         <div className="mx-auto flex max-w-md items-stretch gap-0.5">
           {allowed(MOBILE_PRIMARY).map(mobileItem)}
-          <Sheet open={moreOpen} onOpenChange={setMoreOpen}>
-            <SheetTrigger asChild>
-              <button
-                className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1 transition-colors ${
-                  !allowed(MOBILE_PRIMARY).includes(view) && NAV_GROUPS.some((g) => g.keys.includes(view)) ? 'bg-secondary' : ''
-                }`}
-                aria-label={t('nav.more')}
-                aria-expanded={moreOpen}
-              >
-                <span className="relative flex h-7 w-7 items-center justify-center">
-                  <Menu className={`h-5 w-5 ${!allowed(MOBILE_PRIMARY).includes(view) ? 'text-primary' : 'text-muted-foreground'}`} aria-hidden />
-                </span>
-                <span className={`relative text-[10px] font-semibold ${!allowed(MOBILE_PRIMARY).includes(view) ? 'text-primary' : 'text-muted-foreground'}`}>{t('nav.more')}</span>
-              </button>
-            </SheetTrigger>
-            <SheetContent side="bottom" className="rounded-t-3xl px-4 pb-safe pt-2">
-              <SheetHeader className="sr-only">
-                <SheetTitle>{t('nav.more')}</SheetTitle>
-              </SheetHeader>
-              <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-muted" aria-hidden />
-              <div className="pb-2">
-                {mobileMoreGroups.map((g) => (
-                  <div key={g.key} className="pb-2">
-                    <div className="px-1 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/55">{t(g.label)}</div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      {g.keys.map((k) => {
-                        const I = VIEW_ICONS[k]
-                        const active = view === k
-                        return (
-                          <button
-                            key={k}
-                            onClick={() => go(k)}
-                            className={`flex min-h-[52px] items-center justify-between gap-2 rounded-2xl border px-3.5 py-2.5 text-sm font-medium transition-colors ${
-                              active ? 'border-primary/30 bg-primary/10 text-primary' : 'bg-card text-foreground hover:bg-accent'
-                            }`}
-                          >
-                            <span className="flex items-center gap-2.5">
-                              <I className="h-4.5 w-4.5" aria-hidden />
-                              {label(k)}
-                            </span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground/50" aria-hidden />
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </SheetContent>
-          </Sheet>
+          <motion.button
+            whileTap={{ scale: 0.92 }}
+            transition={{ type: 'spring', stiffness: 520, damping: 30, mass: 0.9 }}
+            onClick={() => { hapticLight(); setMoreOpen(true) }}
+            className={`relative flex min-h-[54px] flex-1 flex-col items-center justify-center gap-1 rounded-2xl px-1 py-1 transition-colors ${
+              !allowed(MOBILE_PRIMARY).includes(view) && NAV_GROUPS.some((g) => g.keys.includes(view)) ? 'bg-secondary/80' : ''
+            }`}
+            aria-label={t('nav.more')}
+            aria-expanded={moreOpen}
+          >
+            <span className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+              !allowed(MOBILE_PRIMARY).includes(view) && NAV_GROUPS.some((g) => g.keys.includes(view))
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted-foreground'
+            }`}>
+              <Menu className="h-5 w-5" strokeWidth={2.1} aria-hidden />
+            </span>
+            <span className={`relative text-[10px] font-bold tracking-tight ${
+              !allowed(MOBILE_PRIMARY).includes(view) && NAV_GROUPS.some((g) => g.keys.includes(view)) ? 'text-primary' : 'text-muted-foreground'
+            }`}>{t('nav.more')}</span>
+          </motion.button>
         </div>
       </nav>
+
+      {/* ---- "More" drawer — everything else, one swipe-dismissable sheet -------- */}
+      <BottomSheet open={moreOpen} onOpenChange={setMoreOpen} title={t('nav.more')}>
+        <div className="pb-2 pt-3">
+          {mobileMoreGroups.map((g) => (
+            <div key={g.key} className="pb-2">
+              <div className="px-1 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/55">{t(g.label)}</div>
+              <div className="grid grid-cols-2 gap-1.5">
+                {g.keys.map((k) => {
+                  const I = VIEW_ICONS[k]
+                  const active = view === k
+                  return (
+                    <motion.button
+                      key={k}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 520, damping: 30 }}
+                      onClick={() => { hapticLight(); go(k) }}
+                      className={`flex min-h-[52px] items-center justify-between gap-2 rounded-2xl px-3.5 py-2.5 text-sm font-medium transition-colors ${
+                        active ? 'bg-primary text-primary-foreground' : 'bg-card text-foreground hover:bg-accent'
+                      }`}
+                    >
+                      <span className="flex items-center gap-2.5">
+                        <I className="h-4.5 w-4.5" aria-hidden />
+                        {label(k)}
+                      </span>
+                      <ChevronRight className={`h-4 w-4 ${active ? 'text-primary-foreground/60' : 'text-muted-foreground/50'}`} aria-hidden />
+                    </motion.button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      </BottomSheet>
 
       {/* ---- ⌘K quick navigation ------------------------------------------------ */}
       <CommandDialog open={cmdOpen} onOpenChange={setCmdOpen} title={t('nav.search')} description={t('nav.searchPlaceholder')}>

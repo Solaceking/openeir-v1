@@ -99,6 +99,24 @@ export const en = {
     none: 'None yet',
     offline: 'Offline — changes will sync',
   },
+  home: {
+    // mobile hero home — one action, not a dashboard
+    heroTitle: 'Talk to Eir',
+    heroSub: 'Ask about your health, log by voice, or just check in.',
+    logReading: 'Log a reading',
+    lastReading: 'Last reading',
+    nextDose: 'Next dose',
+    dosesDone: 'Doses done for today.',
+    noDoses: 'No doses scheduled.',
+    noReadingsYet: 'No readings yet — your numbers start here.',
+    logFirst: 'Log your first reading',
+  },
+  refresh: {
+    pull: 'Pull to refresh',
+    release: 'Release to refresh',
+    refreshing: 'Refreshing',
+    done: 'Up to date',
+  },
   dashboard: {
     greetingMorning: 'Good morning, {name}',
     greetingAfternoon: 'Good afternoon, {name}',
@@ -237,6 +255,11 @@ export const en = {
     distribution: 'Category distribution',
     correlations: 'Correlation explorer',
     noData: 'Log some readings to unlock trends.',
+    emptyInvitation: 'Your trend line starts with one reading — log a few and this space becomes yours.',
+  },
+  readings: {
+    emptyBp: 'Your reading log starts here — every number you add builds your trend and sharpens Eir\u2019s insight.',
+    emptyGlucose: 'No glucose entries yet — add your first one and the curve takes shape.',
   },
   story: {
     title: 'Blood Pressure Story',

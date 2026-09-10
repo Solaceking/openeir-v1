@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
+import { motion } from 'framer-motion'
 import { useProfile, useAuth } from '@/lib/api-client'
 import { AppShell } from '@/components/app-shell'
 import { SetupWizard } from '@/components/setup-wizard'
@@ -18,23 +19,40 @@ import { ReportsView } from '@/components/views/reports'
 import { SettingsView } from '@/components/views/settings'
 import { useUI } from '@/lib/store'
 import type { ViewKey } from '@/lib/nav'
+import { springScreen } from '@/lib/motion'
 
 function ViewRouter() {
   const view = useUI((s) => s.view)
-  switch (view) {
-    case 'dashboard': return <DashboardView />
-    case 'talk': return <TalkView />
-    case 'record': return <RecordView />
-    case 'readings': return <ReadingsView />
-    case 'medications': return <MedicationsView />
-    case 'safety': return <SafetyView />
-    case 'trends': return <TrendsView />
-    case 'story': return <StoryView />
-    case 'whatif': return <WhatIfView />
-    case 'reports': return <ReportsView />
-    case 'settings': return <SettingsView />
-    default: return <DashboardView />
+  const viewFor = (v: ViewKey) => {
+    switch (v) {
+      case 'dashboard': return <DashboardView />
+      case 'talk': return <TalkView />
+      case 'record': return <RecordView />
+      case 'readings': return <ReadingsView />
+      case 'medications': return <MedicationsView />
+      case 'safety': return <SafetyView />
+      case 'trends': return <TrendsView />
+      case 'story': return <StoryView />
+      case 'whatif': return <WhatIfView />
+      case 'reports': return <ReportsView />
+      case 'settings': return <SettingsView />
+      default: return <DashboardView />
+    }
   }
+  // Spring entrance on every screen change. Talk is exempt from the
+  // wrapper: animating a transform ancestor would briefly re-contain its
+  // fixed-positioned composer.
+  if (view === 'talk') return viewFor(view)
+  return (
+    <motion.div
+      key={view}
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={springScreen}
+    >
+      {viewFor(view)}
+    </motion.div>
+  )
 }
 
 const VALID_VIEWS: ViewKey[] = ['dashboard', 'talk', 'record', 'readings', 'medications', 'safety', 'trends', 'story', 'whatif', 'reports', 'settings']

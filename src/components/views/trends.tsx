@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
+import { Activity } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,6 +12,8 @@ import { useUI } from '@/lib/store'
 import { correlateTagsWithSystolic, correlateSleepToMorningBp } from '@/lib/health/stats'
 import { useT } from '@/lib/i18n'
 import { PageHeader } from '@/components/page-header'
+import { PullToRefresh } from '@/components/pull-to-refresh'
+import { useQueryClient } from '@tanstack/react-query'
 
 export function TrendsView() {
   const { t } = useT()
@@ -22,6 +25,16 @@ export function TrendsView() {
   const profile = useProfile()
   const unit = (profile.data?.profile.glucoseUnit ?? 'mmol') as 'mmol' | 'mgdl'
   const simpleMode = useUI((st) => st.simpleMode)
+  const qc = useQueryClient()
+
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['stats'] }),
+      qc.invalidateQueries({ queryKey: ['bp'] }),
+      qc.invalidateQueries({ queryKey: ['glucose'] }),
+      qc.invalidateQueries({ queryKey: ['lifestyle'] }),
+    ])
+  }, [qc])
 
   if (stats.isLoading) return <Skeleton className="h-96" />
   if (!stats.data) return <p className="text-sm text-muted-foreground">{t('trends.noData')}</p>
@@ -43,9 +56,11 @@ export function TrendsView() {
   const chartData = bpRows.map((r) => ({ at: r.takenAt, sys: r.systolic, dia: r.diastolic, pulse: r.pulse })).reverse()
 
   return (
+    <PullToRefresh onRefresh={onRefresh}>
     <div className="space-y-4">
       <PageHeader
         view="trends"
+        tone="data"
         actions={
           <Tabs value={window} onValueChange={(v) => setWindow(v as '30' | '90')}>
             <TabsList>
@@ -80,7 +95,14 @@ export function TrendsView() {
           <CardContent>
             {chartData.length
               ? <BpTrendChart data={chartData} sysTarget={s.profile.sysTarget} diaTarget={s.profile.diaTarget} height={300} />
-              : <p className="py-16 text-center text-sm text-muted-foreground">{t('trends.noData')}</p>}
+              : (
+                <div className="flex flex-col items-center gap-2 py-16 text-center">
+                  <Activity className="h-6 w-6 text-muted-foreground/40" aria-hidden />
+                  <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">
+                    {t('trends.emptyInvitation')}
+                  </p>
+                </div>
+              )}
           </CardContent>
         </Card>
         <Card className="lg:col-span-2">
@@ -155,6 +177,7 @@ export function TrendsView() {
         </Card>
       )}
     </div>
+    </PullToRefresh>
   )
 }
 

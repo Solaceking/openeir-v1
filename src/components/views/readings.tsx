@@ -1,10 +1,11 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { Download, Trash2, HeartPulse, Droplets } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
+import { Download, Trash2, HeartPulse, Droplets, PenLine } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -14,6 +15,22 @@ import { categorizeBp, BP_CATEGORIES } from '@/lib/health/bp'
 import { categorizeGlucose, GLUCOSE_CATEGORIES, toMgdl } from '@/lib/health/glucose'
 import { useT } from '@/lib/i18n'
 import { PageHeader } from '@/components/page-header'
+import { PullToRefresh } from '@/components/pull-to-refresh'
+import { useQueryClient } from '@tanstack/react-query'
+import { useUI } from '@/lib/store'
+
+/** Empty state as an invitation: name the space, one line, verb-first action. */
+function EmptyInvitation({ text, action, onAction }: { text: string; action: string; onAction: () => void }) {
+  return (
+    <div className="flex flex-col items-center gap-3 py-14 text-center">
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground" aria-hidden>
+        <PenLine className="h-5 w-5" />
+      </span>
+      <p className="max-w-xs text-sm leading-relaxed text-muted-foreground">{text}</p>
+      <Button variant="outline" className="min-h-[44px] rounded-full" onClick={onAction}>{action}</Button>
+    </div>
+  )
+}
 
 export function ReadingsView() {
   const { t } = useT()
@@ -22,15 +39,26 @@ export function ReadingsView() {
   const gl = useGlucoseReadings(Number(days))
   const del = useDeleteReading()
   const profile = useProfile()
+  const setView = useUI((s) => s.setView)
   const unit = (profile.data?.profile.glucoseUnit ?? 'mmol') as 'mmol' | 'mgdl'
+  const qc = useQueryClient()
+
+  const onRefresh = useCallback(async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['bp'] }),
+      qc.invalidateQueries({ queryKey: ['glucose'] }),
+    ])
+  }, [qc])
 
   const bpRows = useMemo(() => bp.data?.readings ?? [], [bp.data])
   const glRows = useMemo(() => gl.data?.readings ?? [], [gl.data])
 
   return (
+    <PullToRefresh onRefresh={onRefresh}>
     <div className="space-y-4">
       <PageHeader
         view="readings"
+        tone="data"
         actions={
           <>
             <Select value={days} onValueChange={setDays}>
@@ -105,7 +133,21 @@ export function ReadingsView() {
                       )
                     })}
                     {bpRows.length === 0 && (
-                      <TableRow><TableCell colSpan={8} className="py-10 text-center text-sm text-muted-foreground">{t('trends.noData')}</TableCell></TableRow>
+                      <TableRow>
+                        <TableCell colSpan={8}>
+                          {bp.isLoading ? (
+                            <div className="space-y-2 p-4" aria-busy>
+                              <Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-2/3" />
+                            </div>
+                          ) : (
+                            <EmptyInvitation
+                              text={t('readings.emptyBp')}
+                              action={t('home.logFirst')}
+                              onAction={() => setView('record')}
+                            />
+                          )}
+                        </TableCell>
+                      </TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -151,7 +193,21 @@ export function ReadingsView() {
                       )
                     })}
                     {glRows.length === 0 && (
-                      <TableRow><TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">{t('trends.noData')}</TableCell></TableRow>
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          {gl.isLoading ? (
+                            <div className="space-y-2 p-4" aria-busy>
+                              <Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-full" /><Skeleton className="h-9 w-2/3" />
+                            </div>
+                          ) : (
+                            <EmptyInvitation
+                              text={t('readings.emptyGlucose')}
+                              action={t('home.logFirst')}
+                              onAction={() => setView('record')}
+                            />
+                          )}
+                        </TableCell>
+                      </TableRow>
                     )}
                   </TableBody>
                 </Table>
@@ -161,5 +217,6 @@ export function ReadingsView() {
         </TabsContent>
       </Tabs>
     </div>
+    </PullToRefresh>
   )
 }
