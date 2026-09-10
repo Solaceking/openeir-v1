@@ -40,8 +40,8 @@ from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
 from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
-from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
-from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport, SmallWebRTCTransportParams
+from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
+from pipecat.transports.network.small_webrtc import SmallWebRTCTransport, TransportParams as SmallWebRTCTransportParams
 
 from engines import build_stt, build_tts
 from openeir import OpenEirClient, ConfirmFlow, confirmation_prompt_for

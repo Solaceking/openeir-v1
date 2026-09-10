@@ -44,17 +44,18 @@ async def offer(offer_req: Offer):
     if not SERVICE_TOKEN:
         raise HTTPException(status_code=503, detail="OPENEIR_SERVICE_TOKEN not configured on the voice agent")
     try:
-        from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
+        # pipecat 0.0.66 layout: connection class in network.webrtc_connection,
+        # transport in network.small_webrtc (needs pipecat-ai[webrtc] extra)
+        from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
 
         connection = SmallWebRTCConnection()
-        await connection.initialize_sdp(sdp=offer_req.sdp, type=offer_req.type)
-        answer_sdp, answer_type = connection.get_answer_sdp()
-
+        await connection.initialize(sdp=offer_req.sdp, type=offer_req.type)
+        answer = connection.get_answer()  # dict {sdp, type, pc_id} in 0.0.66
         # import here so /health stays alive even if pipecat extras are missing
         from bot import run_bot
 
         asyncio.create_task(run_bot(connection, OPENEIR_URL, SERVICE_TOKEN))
-        return {"sdp": answer_sdp, "type": answer_type, "peer_id": getattr(connection, "peer_id", None)}
+        return {"sdp": answer["sdp"], "type": answer["type"], "peer_id": answer.get("pc_id")}
     except HTTPException:
         raise
     except ImportError as e:

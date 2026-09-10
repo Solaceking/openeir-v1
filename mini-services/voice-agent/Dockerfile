@@ -5,7 +5,9 @@ WORKDIR /app
 ENV PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
 # build-essentials kept minimal; faster-whisper wheels cover most platforms
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# libgl1 + libglib2.0-0: runtime libs required by opencv (cv2, pulled in by
+# pipecat-ai[webrtc]) — headless images lack them
+RUN apt-get update && apt-get install -y --no-install-recommends curl libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

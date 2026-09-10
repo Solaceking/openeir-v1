@@ -24,7 +24,7 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from pipecat.pipeline.base import Frame  # noqa: F401  (re-exported for bot.py convenience)
+from pipecat.frames.frames import Frame  # noqa: F401  (re-exported for bot.py convenience)
 
 
 def _import(name: str, extra: str):
