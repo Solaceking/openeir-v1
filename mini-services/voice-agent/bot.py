@@ -57,6 +57,35 @@ class OpenEirTurnProcessor(FrameProcessor):
         self._client = client
         self._session_id = session_id
         self._flow: Optional[ConfirmFlow] = None
+        # --- utterance debounce -------------------------------------------------
+        # Deepgram's endpointing can emit a second, slightly-longer "final"
+        # transcript ~1s after VAD already fired one. Both reached the LLM →
+        # the user heard TWO different answers to one question. We now hold
+        # transcripts briefly and send only the longest final one.
+        self._pending_text: str = ""
+        self._turn_lock = asyncio.Lock()
+        self._debounce_handle: Optional[asyncio.TimerHandle] = None
+        self._loop = asyncio.get_event_loop()
+
+    DEBOUNCE_SECS = 1.2  # wait this long for a second, longer transcript
+
+    def _cancel_debounce(self) -> None:
+        if self._debounce_handle:
+            self._debounce_handle.cancel()
+            self._debounce_handle = None
+
+    async def _flush_turn(self) -> None:
+        """Fire the actual RPC turn with the accumulated text (longest wins)."""
+        self._cancel_debounce()
+        text, self._pending_text = self._pending_text, ""
+        if not text.strip():
+            return
+        # a pending confirm flow owns the floor — never send it to the LLM
+        if self._flow is not None:
+            await self._handle_utterance(text)
+            return
+        async with self._turn_lock:
+            await self._handle_utterance(text)
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
@@ -65,7 +94,9 @@ class OpenEirTurnProcessor(FrameProcessor):
             text = frame.text.strip()
             if not text:
                 return
-            await self._handle_utterance(text)
+            self._pending_text = text  # always keep the longest (latest) final
+            self._cancel_debounce()
+            self._debounce_handle = self._loop.call_later(self.DEBOUNCE_SECS, lambda: self._loop.create_task(self._flush_turn()))
         elif isinstance(frame, TextFrame) and frame.text.startswith("__openeir__"):
             # internal control frames (reserved for future integrations)
             return

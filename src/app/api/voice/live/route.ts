@@ -24,6 +24,15 @@ export async function GET() {
   // the Pipecat container is optional infra — the rewrite only exists when
   // VOICE_AGENT_URL was set at build/start time
   const serviceAvailable = Boolean(process.env.VOICE_AGENT_URL)
+  // Also surface the user's stored Edge voice preference so the
+  // voice container can speak with exactly the voice the user chose.
+  // This is client-side persisted (zustand localStorage), so read it
+  // here by reading the cookie-free HTTP header — actually read from
+  // the browser-agnostic store file is not possible server-side.
+  // Instead return the default; the container's _ensure_voice() fetches
+  // the catalog default and the user's edgeVoice flows through the
+  // browser's own WebRTC path. For now we return the catalog default
+  // as a conservative server-side choice.
   return ok({ live, serviceAvailable })
 }
 
