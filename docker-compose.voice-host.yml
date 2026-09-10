@@ -1,0 +1,24 @@
+# OpenEir — voice-agent override for HOST-mode deployments (app on systemd/bare
+# metal, not the compose "app" service). Use together with the voice profile:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.voice-host.yml \
+#     --profile voice up -d --build
+#
+# Differences vs the in-compose default:
+#   - network_mode: host — the app runs on the host at 127.0.0.1:3000, and WebRTC
+#     ICE host candidates become real LAN/tailnet IPs (direct audio, no TURN),
+#     which is what "single-user self-hosted, direct LAN audio" assumes.
+#   - no ports mapping (host networking ignores it; server listens on :8021)
+#   - secrets come from .env next to docker-compose.yml (git-ignored):
+#       OPENEIR_SERVICE_TOKEN=<same value as the app service>
+#       DEEPGRAM_API_KEY=<optional, cloud Nova-3 STT>
+services:
+  voice-agent:
+    network_mode: host
+    depends_on: !reset []
+    environment:
+      OPENEIR_URL: http://127.0.0.1:3000
+      OPENEIR_SERVICE_TOKEN: ${OPENEIR_SERVICE_TOKEN:?set OPENEIR_SERVICE_TOKEN in .env — same value as the app}
+      DEEPGRAM_URL: ${DEEPGRAM_URL:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      PIPER_VOICE_PATH: ${PIPER_VOICE_PATH:-voices/en_US-amy-medium.onnx}

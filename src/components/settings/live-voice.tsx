@@ -23,7 +23,7 @@ interface LiveState {
 
 const STT_ENGINES: Array<{ id: LiveState['sttEngine']; label: string; hint: string }> = [
   { id: 'local_whisper', label: 'Local Whisper', hint: 'Your own whisper server or in-container — private' },
-  { id: 'deepgram_selfhosted', label: 'Deepgram (self-hosted)', hint: 'Lower latency; needs the Deepgram engine + DEEPGRAM_URL' },
+  { id: 'deepgram_selfhosted', label: 'Deepgram (cloud)', hint: 'Nova-3 via api.deepgram.com — fastest; uses DEEPGRAM_API_KEY. Self-hosted endpoint also works via DEEPGRAM_URL' },
 ]
 
 const TTS_ENGINES: Array<{ id: LiveState['ttsEngine']; label: string; hint: string }> = [
