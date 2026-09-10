@@ -160,7 +160,12 @@ async def run_bot(connection: SmallWebRTCConnection, openeir_url: str, service_t
                 transport.output(),     # speaker
             ]
         )
-        task = PipelineTask(pipeline, params=PipelineParams(allow_interruptions=True))
+        task = PipelineTask(
+            pipeline,
+            params=PipelineParams(allow_interruptions=True),
+            idle_timeout_secs=1800,   # don't self-cancel a live conversation
+            cancel_on_idle_timeout=False,  # silence ≠ ended; mic stays open
+        )
 
         @transport.event_handler("on_client_connected")
         async def _connected(transport, client_data):  # noqa: ANN001
