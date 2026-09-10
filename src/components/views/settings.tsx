@@ -37,6 +37,7 @@ import { IntegrationsSection } from '@/components/settings/integrations'
 import { AccountsSection } from '@/components/settings/accounts'
 import { EmailSection, NativePushSection } from '@/components/settings/email-push'
 import { MobilePairCard } from '@/components/settings/mobile-pair'
+import { AppPermissionsCard } from '@/components/settings/app-permissions'
 import { AgentSection } from '@/components/settings/agent'
 import { LiveVoiceCard } from '@/components/settings/live-voice'
 import { toast } from 'sonner'
@@ -166,7 +167,7 @@ export function SettingsView() {
         }
       />
 
-      {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /><MobilePairCard /></div>)}
+      {section === 'profile' && (<div className="space-y-4"><ProfileIdentityForm /><AccountsSection /><MobilePairCard /><AppPermissionsCard /></div>)}
       {section === 'providers' && <ProvidersSection />}
       {section === 'agent' && <AgentSection />}
       {section === 'mcp' && <McpSection />}

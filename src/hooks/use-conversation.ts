@@ -30,6 +30,7 @@ import {
   speak, stopSpeaking, warmSpeak, onNeuralAudio,
 } from '@/lib/voice/tts'
 import { speechRecognitionSupported } from '@/lib/voice/stt'
+import { useT } from '@/lib/i18n'
 import { useUI } from '@/lib/store'
 import type { OrbState } from '@/lib/voice/orb-engine'
 
@@ -127,6 +128,7 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
   const [state, setState] = useState<ConversationState>('off')
   const [interim, setInterim] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const { t } = useT()
   const [notice, setNotice] = useState<string | null>(null)   // soft, non-blocking hint
   const [canListen, setCanListen] = useState(true)
   const [ear, setEar] = useState<ConversationEar>('webspeech')
@@ -587,14 +589,19 @@ export function useConversation(onTurn: (turn: ConversationTurn) => void) {
       micAnalyserRef.current = analyser
       ctx.createMediaStreamSource(stream).connect(analyser)
       startRaf()
-    } catch {
-      // no mic / denied — the session still works for speaking + text input
+    } catch (err) {
+      // no mic / denied — the session still works for speaking + text input,
+      // but say so plainly (name the fix) instead of silently disabling listen
       listenDisabledRef.current = true
       setCanListen(false)
+      const name = (err as { name?: string } | null)?.name ?? ''
+      if (name === 'NotAllowedError' || name === 'SecurityError') {
+        setError(t('appPerms.micDeniedError'))
+      }
     }
     setBoth(listenDisabledRef.current ? 'idle' : 'listening')
     startRecognition()
-  }, [setBoth, startRaf, startRecognition])
+  }, [setBoth, startRaf, startRecognition, t])
   const canListenRef = useRef(true)
 
   const stop = useCallback(() => {

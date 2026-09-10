@@ -50,6 +50,16 @@
     .spinner { width: 14px; height: 14px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: none; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .foot { margin-top: 26px; font-size: 11px; color: #a8a29e; max-width: 320px; line-height: 1.5; }
+    /* ---- permissions step ---- */
+    .perm-card { display: none; width: 100%; max-width: 380px; background: #fffdf8; border: 1px solid rgba(41,37,36,.12); border-radius: 16px; padding: 20px; text-align: left; }
+    .perm-card h2 { font-family: Georgia, 'Times New Roman', serif; font-weight: 500; font-size: 19px; letter-spacing: -.01em; margin: 0 0 4px; }
+    .perm-sub { font-size: 12px; color: #78716c; line-height: 1.5; margin: 0 0 14px; }
+    .perm-row { display: flex; gap: 12px; align-items: flex-start; padding: 11px 0; border-top: 1px solid rgba(41,37,36,.07); }
+    .perm-row svg { flex: none; width: 20px; height: 20px; stroke: #0f766e; margin-top: 1px; }
+    .perm-row b { display: block; font-size: 13.5px; font-weight: 600; color: #292524; }
+    .perm-row span { display: block; font-size: 12px; color: #78716c; line-height: 1.5; margin-top: 1px; }
+    .perm-state { margin-left: auto; flex: none; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; padding: 3px 8px; border-radius: 999px; background: rgba(41,37,36,.06); color: #78716c; }
+    .perm-state.ok { background: rgba(15,118,110,.1); color: #0f766e; }
   </style>
 </head>
 <body>
@@ -58,7 +68,7 @@
   <h1>OpenEir</h1>
   <p class="tagline">Your health, your box, your rules.</p>
 
-  <div class="card">
+  <div class="card" id="pair-card">
     <label for="server-url">OpenEir server address</label>
     <input id="server-url" type="url" inputmode="url" autocapitalize="off" autocorrect="off"
            spellcheck="false" placeholder="https://openeir.example.com" autofocus>
@@ -76,6 +86,38 @@
     <button id="connect"><span class="spinner" id="spin"></span><span id="btn-label">Connect</span></button>
     <button id="scan" class="secondary" type="button">Scan QR code</button>
     <div class="status" id="status"></div>
+  </div>
+
+  <!-- Permissions step — shown once after a successful server check, before
+       handing over to the paired instance. Plain reasons, skippable, changeable
+       later in Settings → App permissions. -->
+  <div class="perm-card" id="perm-card">
+    <h2>Permissions, plainly</h2>
+    <p class="perm-sub">OpenEir asks once and says why. Skip anything — the app still works, and you can change this later in <b>Settings → App permissions</b>.</p>
+
+    <div class="perm-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" x2="12" y1="19" y2="22"/></svg>
+      <div><b>Microphone</b><span>Talk to Eir by voice. The mic only listens while a voice feature is open — never in the background.</span></div>
+      <em class="perm-state" id="st-microphone"></em>
+    </div>
+    <div class="perm-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+      <div><b>Camera</b><span>Scan the pairing QR code and photograph documents straight into OpenEir.</span></div>
+      <em class="perm-state" id="st-camera"></em>
+    </div>
+    <div class="perm-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+      <div><b>Location</b><span>Only with SOS: an emergency alert attaches your location so contacts know where you are.</span></div>
+      <em class="perm-state" id="st-location"></em>
+    </div>
+    <div class="perm-row">
+      <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+      <div><b>Notifications</b><span>Medication reminders and SOS alerts, even when the app is closed.</span></div>
+      <em class="perm-state" id="st-notifications"></em>
+    </div>
+
+    <button id="perm-allow"><span class="spinner" id="perm-spin"></span><span id="perm-label">Allow these</span></button>
+    <button id="perm-skip" class="secondary" type="button">Not now</button>
   </div>
 
   <p class="foot">

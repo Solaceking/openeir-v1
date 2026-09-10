@@ -61,6 +61,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // plugin registration must happen before the bridge initializes
         registerPlugin(OpenEirBridge.class);
+        registerPlugin(OpenEirPermissions.class);
         super.onCreate(savedInstanceState);
         createNotificationChannels();
         PluginHandle handle = bridge.getPlugin("OpenEirBridge");

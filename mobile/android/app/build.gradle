@@ -16,8 +16,8 @@ android {
     // the defaults below.
     def tag = System.getenv("GITHUB_REF_NAME") ?: ""
     def vMatch = (tag =~ /^v(\d+)\.(\d+)\.(\d+)$/)
-    def verName = "3.8.3"
-    def verCode = 30803
+    def verName = "3.9.1"
+    def verCode = 30901
     if (vMatch.find()) {
         verName = tag.substring(1)
         verCode = (vMatch.group(1) as int) * 10000 + (vMatch.group(2) as int) * 100 + (vMatch.group(3) as int)

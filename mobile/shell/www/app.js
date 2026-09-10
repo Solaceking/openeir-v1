@@ -65,6 +65,108 @@ function bridgeReady(timeoutMs) {
   });
 }
 
+// ---------- permissions step ----------
+
+// Wait for the permissions plugin the same way we wait for the other plugins.
+function permsReady(timeoutMs) {
+  return new Promise(function (resolve) {
+    var waited = 0;
+    (function poll() {
+      if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.OpenEirPermissions) {
+        resolve(window.Capacitor.Plugins.OpenEirPermissions);
+      } else if (waited > (timeoutMs || 4000)) {
+        resolve(null);
+      } else {
+        waited += 100;
+        setTimeout(poll, 100);
+      }
+    })();
+  });
+}
+
+var PERM_KEYS = ['microphone', 'camera', 'location', 'notifications'];
+var pendingBase = null;
+var pendingAllowHttp = false;
+var permsPlugin = null;
+
+function setPermChip(key, state) {
+  var el = $('st-' + key);
+  if (!el) return;
+  var label = state === 'granted' ? 'allowed' : state === 'blocked' ? 'blocked' : 'not asked';
+  el.textContent = label;
+  el.className = 'perm-state' + (state === 'granted' ? ' ok' : '');
+}
+
+function showPairCard() {
+  $('perm-card').style.display = 'none';
+  document.getElementById('pair-card').style.display = 'block';
+}
+
+function showPermCard() {
+  document.getElementById('pair-card').style.display = 'none';
+  $('perm-card').style.display = 'block';
+}
+
+function setPermBusy(busy) {
+  $('perm-allow').disabled = busy;
+  $('perm-spin').style.display = busy ? 'inline-block' : 'none';
+  $('perm-label').textContent = busy ? 'Asking Android…' : 'Allow these';
+}
+
+// Validation succeeded → offer the one-time permission step (skippable), then
+// hand over to the paired server. If everything is already granted, or the
+// plugin is missing, connect straight through — zero extra friction.
+function afterValidate(base, allowHttp) {
+  pendingBase = base;
+  pendingAllowHttp = allowHttp;
+  permsReady().then(function (perms) {
+    if (!perms) { finishConnect(); return; }
+    permsPlugin = perms;
+    perms.status().then(function (raw) {
+      var st = unwrap(raw) || {};
+      var allGranted = PERM_KEYS.every(function (k) { return st[k] === 'granted'; });
+      if (allGranted) { finishConnect(); return; }
+      PERM_KEYS.forEach(function (k) { setPermChip(k, st[k]); });
+      showPermCard();
+    }).catch(function () { finishConnect(); });
+  });
+}
+
+function finishConnect() {
+  // leave whichever card is visible — the WebView navigates to the server next
+  statusLine.textContent = 'Connected — opening…';
+  bridgeReady().then(function (bridge) {
+    if (!bridge || !pendingBase) {
+      setBusy(false);
+      showError('Native bridge unavailable — restart the app and try again.');
+      return;
+    }
+    bridge.connect({ url: pendingBase, allowHttp: pendingAllowHttp })
+      .catch(function (e) {
+        showError('Something went wrong: ' + (e && e.message ? e.message : e));
+      });
+  });
+}
+
+$('perm-allow').addEventListener('click', function () {
+  if (!permsPlugin) { finishConnect(); return; }
+  setPermBusy(true);
+  permsPlugin.request({ permissions: PERM_KEYS.slice() })
+    .then(function (raw) {
+      setPermBusy(false);
+      var st = unwrap(raw) || {};
+      PERM_KEYS.forEach(function (k) { setPermChip(k, st[k]); });
+      statusLine.textContent = 'Thanks — opening OpenEir…';
+      setTimeout(finishConnect, 500);
+    })
+    .catch(function () {
+      setPermBusy(false);
+      finishConnect();
+    });
+});
+
+$('perm-skip').addEventListener('click', finishConnect);
+
 function connect() {
   clearError();
   statusLine.textContent = '';
@@ -99,8 +201,7 @@ function connect() {
           showError('Could not reach an OpenEir server there (' + why + '). Check the address and your connection.');
           return;
         }
-        statusLine.textContent = 'Connected — opening…';
-        return bridge.connect({ url: base, allowHttp: $('allow-http').checked });
+        afterValidate(base, $('allow-http').checked);
       })
       .catch(function (e) {
         setBusy(false);
@@ -113,7 +214,7 @@ btn.addEventListener('click', connect);
 $('server-url').addEventListener('keydown', function (e) { if (e.key === 'Enter') connect(); });
 $('allow-http').addEventListener('change', clearError);
 
-// ---------- QR pairing ----------
+// ---------- QR pairing (after the permissions-step section) ----------
 
 // Wait for the scanner plugin the same way we wait for OpenEirBridge.
 function scannerReady(timeoutMs) {

@@ -63,6 +63,26 @@
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Microphone: voice input (talk to Eir, STT, live voice). Declared so the
+         WebView's getUserMedia request can trigger the runtime prompt instead of
+         being silently denied. The mic is only read while a voice feature is open. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Camera: QR pairing + photographing documents for OCR. -->
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!-- Location: attached to SOS/emergency alerts only, so contacts know where
+         the user is. Never used in the background. -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+    <!-- None of the above is required hardware — old/limited devices still get the app. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
     <!-- UnifiedPush distributor discovery (Android 11+ package visibility) -->
     <queries>
         <intent>
