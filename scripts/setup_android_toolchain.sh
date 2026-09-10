@@ -60,3 +60,7 @@ else
   echo "KEYSTORE_EXISTS"
 fi
 echo "=== TOOLCHAIN READY ==="
+
+# NOTE for local builds: run `cd mobile && npx cap sync android` BEFORE gradle —
+# android/app/src/main/assets/public is a gitignored generated copy of shell/www.
+# CI (android.yml) runs cap sync itself; skipping it ships a stale shell.
